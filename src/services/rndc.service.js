@@ -83,13 +83,17 @@ const rndcService = {
             const xmlResponses = [];
 
             for (const resultado of resultados) {
-                console.log('Resultado final:', resultado);
-                // Aquí podrías llamar a la función para enviar el XML al RNDC si es necesario
-                console.log('Enviando al RNDC...');
-                console.log("responseasas",await rndcConectionService.createRegistroCargueDescargue(resultado.data).data)
 
-                if (resultado.tipo === TIPO_INGRESO.SALIDA) xmlResponses.push({data : await rndcConectionService.createRegistroMonitoreo(resultado.data).data});
-                else xmlResponses.push({data : await rndcConectionService.createRegistroCargueDescargue(resultado.data).data});
+                // Obtener las respuestas correctamente
+                const responseXML = await rndcConectionService.createRegistroCargueDescargue(resultado.data);
+
+                if (resultado.tipo === TIPO_INGRESO.SALIDA) {
+                    const monitoreoResponse = await rndcConectionService.createRegistroMonitoreo(resultado.data);
+                    xmlResponses.push({ data: monitoreoResponse.data });
+                } else {
+                    xmlResponses.push({ data: responseXML.data });
+                }
+
             }
             console.log('Respuestas XML RNDC:', xmlResponses);
 
@@ -123,9 +127,8 @@ const rndcService = {
 
             if (masCercano.properties.distanceToPoint > 1) {
                 const intentos = punto.intentos ? punto.intentos + 1 : 1;
-                console.log('Incrementando intentos a:', intentos);
-                console.log('Ultimo intento:', new Date());
-                DbConfig.executeQuery(`UPDATE rndc_puntos_control SET intentos = ?, ult_intento = ? WHERE id_punto = ?`, [intentos, masCercano.properties.distanceToPoint, punto.id_punto]);
+                console.log('Distancia al punto de control:', masCercano.geometry.coordinates);
+                DbConfig.executeQuery(`UPDATE rndc_puntos_control SET intentos = ?, ult_intento = ? WHERE id_punto = ?`, [intentos, JSON.stringify(masCercano.geometry.coordinates), punto.id_punto]);
                 return { success: false, message: 'No se encontro punto de entrada registrada' };
 
             }
@@ -158,12 +161,15 @@ const rndcService = {
             }
 
             const puntoControl = turf.point([puntolon, puntolat]);
+            console.log("puntoControl:", puntoControl);
+            console.log("punto.fecha_llegada:", punto.fecha_llegada);
             const datafiltered = coordenadas.data.filter(coord => (coord.dia_hora > punto.fecha_llegada && turf.distance(turf.point([coord.longitud, coord.latitud]), puntoControl) >= 1));
             const puntos = datafiltered.map(coord => { return turf.point([coord.longitud, coord.latitud]) });
+            console.log("puntosssss:", puntos);
 
-            if (!puntos || puntos.length <= 0) {
+            if (!datafiltered || datafiltered.length <= 0) {
                 const intentos = punto.intentos ? punto.intentos + 1 : 1;
-                DbConfig.executeQuery(`UPDATE rndc_puntos_control SET intentos = ?, ult_intento = ? WHERE id_punto = ?`, [intentos, masCercano.properties.distanceToPoint, punto.id_punto]);
+                DbConfig.executeQuery(`UPDATE rndc_puntos_control SET intentos = ?, ult_intento = ? WHERE id_punto = ?`, [intentos, JSON.stringify(puntos[0].geometry.coordinates), punto.id_punto]);
 
                 return { success: false, message: 'No se encontró punto de salida' };
             }

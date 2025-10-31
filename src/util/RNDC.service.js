@@ -106,6 +106,7 @@ class RNDCService {
 
     async createRegistroMonitoreo(data, user) {
         try {
+            const dataRMM = data.ROOT.VARIABLES;
             console.log('🚀 Llamando a API RNDC con:', data, user);
             const xmlData = `
                     <solicitud>
@@ -113,19 +114,18 @@ class RNDCService {
                     <procesoid>3</procesoid>
                     </solicitud>
                     <variables>
-                    <NUMIDGPS>${data.numidgps}</NUMIDGPS>
-                    <INGRESOIDMANIFIESTO>${data.ingresoidmanifiesto}</INGRESOIDMANIFIESTO>
-                    <CODPUNTOCONTROL>${data.codpuntocontrol}</CODPUNTOCONTROL>
-                    <LATITUD>${data.latitud}</LATITUD>
-                    <LONGITUD>${data.longitud}</LONGITUD>
-                    <PLACA>${data.placa}</PLACA>
-                    <FECHALLEGADA>${data.fechallegada}</FECHALLEGADA>
-                    <HORALLEGADA>${data.horallegada}</HORALLEGADA>
-                    <FECHASALIDA>${data.fechasalida}</FECHASALIDA>
-                    <HORASALIDA>${data.horasalida}</HORASALIDA>
+                    <NUMIDGPS>${dataRMM.NUMIDGPS}</NUMIDGPS>
+                    <INGRESOIDMANIFIESTO>${dataRMM.INGRESOIDMANIFIESTO}</INGRESOIDMANIFIESTO>
+                    <CODPUNTOCONTROL>${dataRMM.CODPUNTOCONTROL}</CODPUNTOCONTROL>
+                    <LATITUD>${dataRMM.LATITUD}</LATITUD>
+                    <LONGITUD>${dataRMM.LONGITUD}</LONGITUD>
+                    <PLACA>${dataRMM.PLACA}</PLACA>
+                    <FECHALLEGADA>${dataRMM.FECHALLEGADA}</FECHALLEGADA>
+                    <HORALLEGADA>${dataRMM.HORALLEGADA}</HORALLEGADA>
+                    <FECHASALIDA>${dataRMM.FECHASALIDA}</FECHASALIDA>
+                    <HORASALIDA>${dataRMM.HORASALIDA}</HORASALIDA>
                     </variables>`
 
-            //console.log('XML Data:', xmlData);
             return { statusCode: 200, data: xmlData };
 
             const response = await this.atenderMensajeRNDC(xmlData, user.idEmpresa);
@@ -145,6 +145,7 @@ class RNDCService {
 
     async createRegistroCargueDescargue(data, user) {
         try {
+            const dataRMM = data.ROOT.VARIABLES;
             console.log('🚀 Llamando a API RNDC con:', data, user);
             const xmlData = `
                     <solicitud>
@@ -152,22 +153,22 @@ class RNDCService {
                     <procesoid>3</procesoid>
                     </solicitud>
                     <variables>
-                    <NUMIDGPS>${data.numidgps}</NUMIDGPS>
-                    <INGRESOIDMANIFIESTO>${data.ingresoidmanifiesto}</INGRESOIDMANIFIESTO>
-                    <CODPUNTOCONTROL>${data.codpuntocontrol}</CODPUNTOCONTROL>
-                    <LATITUD>${data.latitud}</LATITUD>
-                    <LONGITUD>${data.longitud}</LONGITUD>
-                    <PLACA>${data.placa}</PLACA>
-                    <FECHALLEGADA>${data.fechallegada}</FECHALLEGADA>
-                    <HORALLEGADA>${data.horallegada}</HORALLEGADA>
-                    <FECHASALIDA>${data.fechasalida}</FECHASALIDA>
-                    <HORASALIDA>${data.horasalida}</HORASALIDA>
-                    <FECHAENTRADA>${data.fechaentrada}</FECHAENTRADA
-                    <HORAENTRADA>${data.horaentrada}</HORAENTRADA>
-                    <TIPOIDCONDUCTOR>${data.tipoidconductor}</TIPOIDCONDUCTOR>
-                    <NUMIDCONDUCTOR>${data.numidconductor}</NUMIDCONDUCTOR>
+                    <NUMIDGPS>${dataRMM.NUMIDGPS}</NUMIDGPS>
+                    <INGRESOIDMANIFIESTO>${dataRMM.INGRESOIDMANIFIESTO}</INGRESOIDMANIFIESTO>
+                    <CODPUNTOCONTROL>${dataRMM.CODPUNTOCONTROL}</CODPUNTOCONTROL>
+                    <LATITUD>${dataRMM.LATITUD}</LATITUD>
+                    <LONGITUD>${dataRMM.LONGITUD}</LONGITUD>
+                    <PLACA>${dataRMM.PLACA}</PLACA>
+                    <FECHALLEGADA>${dataRMM.FECHALLEGADA}</FECHALLEGADA>
+                    <HORALLEGADA>${dataRMM.HORALLEGADA}</HORALLEGADA>
+                    <FECHASALIDA>${dataRMM.FECHASALIDA}</FECHASALIDA>
+                    <HORASALIDA>${dataRMM.HORASALIDA}</HORASALIDA>
+                    <FECHAENTRADA>${dataRMM.FECHAENTRADA}</FECHAENTRADA>
+                    <HORAENTRADA>${dataRMM.HORAENTRADA}</HORAENTRADA>
+                    <TIPOIDCONDUCTOR>${dataRMM.TIPOIDCONDUCTOR}</TIPOIDCONDUCTOR>
+                    <NUMIDCONDUCTOR>${dataRMM.NUMIDCONDUCTOR}</NUMIDCONDUCTOR>
                     </variables>`
-            //console.log('XML Data:', xmlData);
+
             return { statusCode: 200, data: xmlData };
 
             const response = await this.atenderMensajeRNDC(xmlData, user.idEmpresa);
