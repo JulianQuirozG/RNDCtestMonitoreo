@@ -1,7 +1,13 @@
 const turf = require("@turf/turf");
 const DbConfig = require("../config/db");
+const RNDCService = require("../util/RNDC.service");
+const TIPO_INGRESO = {
+    SALIDA: 'salida',
+    CARGUE: 'cargue',
+    DESCARGUE: 'descargue'
+};
 
-
+const rndcConectionService = new RNDCService();
 const rndcService = {
     /**
 * Encuentra los puntos GPS más cercanos a cada punto de control por viaje.
@@ -14,45 +20,84 @@ const rndcService = {
         const resultados = [];
         try {
             // Si no se proporcionan datos, consultar desde la base de datos
-
-            const controlPoints = await DbConfig.executeQuery(`SELECT * FROM rndc_puntos_control WHERE estado != 2`);
-            if (!controlPoints.success) {
-                console.error('Error consultando puntos de control:', controlPoints.error);
+            const manifiestos = await DbConfig.executeQuery(`SELECT * FROM rndc_consultas WHERE estado = 1`);
+            if (!manifiestos.success) {
+                console.error('Error consultando manifiestos:', manifiestos.error);
+                return [];
+            }
+            if (!manifiestos.data || manifiestos.data.length <= 0) {
+                console.log('No hay manifiestos activos para procesar.');
+                return [];
             }
 
-            for (const punto of controlPoints.data) {
+            for (const manifiesto of manifiestos.data) {
 
-                const coordenadas = await DbConfig.executeQuery(`SELECT * FROM track_trailer WHERE id_viaje = ? ORDER BY dia_hora ASC`, [punto.id_consulta]);
-
-                if (!coordenadas.success) {
-                    console.error('Error consultando coordenadas GPS:', coordenadas.error);
+                const controlPoints = await DbConfig.executeQuery(`SELECT * FROM rndc_puntos_control WHERE estado != 2 AND id_consulta = ?`, [manifiesto.id_consulta]);
+                if (!controlPoints.success) {
+                    console.error('Error consultando puntos de control:', controlPoints.error);
                     continue;
                 }
 
-                if (punto.estado == 0) await this.generarEntrada(punto, coordenadas);
-
-                if (punto.estado == 1) {
-                    const generarSalida = await this.generarSalida(punto, coordenadas);
-
-                    console.log('Generar salida result:', generarSalida);
-
-
-                    if (generarSalida && generarSalida.success) {
-                        console.log('Generando XML/JSON para punto:', punto);
-
-                        const xmlJson = this.generarXMLINJSON(generarSalida.data, coordenadas.data[0]);
-                        resultados.push(xmlJson.data)
-                    }
+                const puntosCargueDescargue = this.obtenerPuntosDeCargueDescargue(controlPoints.data);
+                if (!puntosCargueDescargue.success) {
+                    console.error('Error obteniendo puntos de cargue/descargue:', puntosCargueDescargue.error);
+                    continue;
                 }
 
-                //crear el xml con la informacion
-            }
+                const { puntosCargue, puntosDescargue } = puntosCargueDescargue.data;
+                console.log('Puntos de cargue:', puntosCargue);
+                console.log('Puntos de descargue:', puntosDescargue);
 
-            return resultados;
+                for (const punto of controlPoints.data) {
+
+                    const coordenadas = await DbConfig.executeQuery(`SELECT * FROM track_trailer WHERE id_viaje = ? ORDER BY dia_hora ASC`, [punto.id_consulta]);
+
+                    if (!coordenadas.success) {
+                        console.error('Error consultando coordenadas GPS:', coordenadas.error);
+                        continue;
+                    }
+
+                    if (punto.estado == 0) {
+                        const generarEntrada = await this.generarEntrada(punto, coordenadas);
+                        console.log('Generar entrada result:', generarEntrada);
+
+                    }
+
+                    if (punto.estado == 1) {
+                        const generarSalida = await this.generarSalida(punto, coordenadas);
+
+                        if (generarSalida && generarSalida.success) {
+
+                            const tipoXml = puntosCargue.includes(punto.id_punto) || puntosDescargue.includes(punto.id_punto) ? TIPO_INGRESO.CARGUE : TIPO_INGRESO.SALIDA;
+                            console.log('Tipo de XML a generar:', tipoXml);
+
+                            const xmlJson = this.generarXMLINJSON(manifiesto, generarSalida.data, coordenadas.data[0], tipoXml);
+                            resultados.push({ tipo: tipoXml, data: xmlJson.data });
+                            console.log('XML/JSON generado para salida:', xmlJson);
+                        }
+
+                    }
+                    //crear el xml con la informacion
+                }
+            }
+            const xmlResponses = [];
+
+            for (const resultado of resultados) {
+                console.log('Resultado final:', resultado);
+                // Aquí podrías llamar a la función para enviar el XML al RNDC si es necesario
+                console.log('Enviando al RNDC...');
+                console.log("responseasas",await rndcConectionService.createRegistroCargueDescargue(resultado.data).data)
+
+                if (resultado.tipo === TIPO_INGRESO.SALIDA) xmlResponses.push({data : await rndcConectionService.createRegistroMonitoreo(resultado.data).data});
+                else xmlResponses.push({data : await rndcConectionService.createRegistroCargueDescargue(resultado.data).data});
+            }
+            console.log('Respuestas XML RNDC:', xmlResponses);
+
+            return { statusCode: 200, data: [resultados, xmlResponses] };
 
         } catch (error) {
             console.error('Error en puntosCercanosPorViaje:', error.message);
-            return [];
+            return { statusCode: 500, error: error.message };
         }
     },
     async generarEntrada(punto, coordenadas) {
@@ -88,13 +133,15 @@ const rndcService = {
             const fecha_llegada = coordenadas.data[masCercano.properties.featureIndex].dia_hora;
             console.log('Fecha llegada:', fecha_llegada);
             DbConfig.executeQuery(`UPDATE rndc_puntos_control SET estado = 1, fecha_llegada = ? WHERE id_punto = ?`, [new Date(fecha_llegada), punto.id_punto]);
-            return { success: true, message: 'Salida registrada' };
+            punto.fecha_salida = fecha_salida;
+            return { success: true, message: 'Salida registrada', data: punto };
 
         } catch (error) {
             console.error('Error en generarEntrada:', error.message);
             return { success: false, error: error.message };
         }
     },
+
     async generarSalida(punto, coordenadas) {
         try {
 
@@ -132,9 +179,23 @@ const rndcService = {
             return { success: false, error: error.message };
         }
     },
-
-    generarXMLINJSON(puntoControlData, coordenadasData) {
-        console.log('Generando XML/JSON con:', puntoControlData, coordenadasData);
+    obtenerPuntosDeCargueDescargue(puntos) {
+        try {
+            let i = 0;
+            const puntosCargue = [];
+            const puntosDescargue = [];
+            for (const punto of puntos) {
+                if (i == 0) puntosCargue.push(punto.id_punto);
+                if (i == puntos.length - 1) puntosDescargue.push(punto.id_punto);
+                i++;
+            }
+            return { success: true, data: { puntosCargue, puntosDescargue } };
+        } catch (error) {
+            console.error('Error en obtenerPuntosDeCargueDescargue:', error.message);
+            return { success: false, error: error.message };
+        }
+    },
+    generarXMLINJSON(manifiesto, puntoControlData, coordenadasData, tipo = TIPO_INGRESO.SALIDA) {
         const ROOT = {};
         const VERSION = "1.0";
         const ENCODING = "ISO-8859-1";
@@ -157,12 +218,18 @@ const rndcService = {
             HORALLEGADA: new Date(puntoControlData.fecha_llegada).toLocaleTimeString('es-CO', { hour12: false, hour: '2-digit', minute: '2-digit' }),
             FECHASALIDA: new Date(puntoControlData.fecha_salida).toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit', year: 'numeric' }).replace(/\//g, '/'),
             HORASALIDA: new Date(puntoControlData.fecha_salida).toLocaleTimeString('es-CO', { hour12: false, hour: '2-digit', minute: '2-digit' }),
-
         };
+        if (tipo !== TIPO_INGRESO.SALIDA) {
+            ROOT.VARIABLES.FECHAENTRADA = new Date(puntoControlData.fecha_llegada).toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit', year: 'numeric' }).replace(/\//g, '/');
+            ROOT.VARIABLES.HORAENTRADA = new Date(puntoControlData.fecha_llegada).toLocaleTimeString('es-CO', { hour12: false, hour: '2-digit', minute: '2-digit' });
+            ROOT.VARIABLES.TIPOIDCONDUCTOR = manifiesto.cod_id_conductor;
+            ROOT.VARIABLES.NUMIDCONDUCTOR = manifiesto.num_id_conductor;
+        }
         // Lógica para llenar jsonResponse con los datos necesarios
 
         return { success: true, data: { VERSION, ENCODING, ROOT } };
-    }
+    },
+
 }
 
 

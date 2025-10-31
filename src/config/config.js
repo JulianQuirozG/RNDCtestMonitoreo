@@ -2,6 +2,7 @@ require('dotenv').config();
 module.exports = {
     port: process.env.PORT || 3000,
     nodeEnv: process.env.NODE_ENV || 'development',
+    RNDC_WS_DEMO_URL: process.env.RNDC_WS_DEMO_URL || 'http://plc.mintransporte.gov.co:8080/soap/IBPMServices',
 
     database: {
         host: process.env.DB_HOST || 'localhost',

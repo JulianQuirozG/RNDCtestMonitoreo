@@ -1,0 +1,19 @@
+<root>
+<acceso>
+<username>TRANSEXMAR@2963</username>
+<password>+Nextcarga_*2024+</password>
+</acceso>
+ 
+<solicitud>
+<tipo>3</tipo>
+<procesoid>4</procesoid>
+</solicitud>
+ 
+<variables>
+     NUMPLACA,INGRESOID,FECHAING,NUMMANIFIESTOCARGA
+</variables>
+<documento>
+<NUMNITEMPRESATRANSPORTE>9007319718</NUMNITEMPRESATRANSPORTE>
+<NUMMANIFIESTOCARGA>022786</NUMMANIFIESTOCARGA>
+</documento>
+</root>
