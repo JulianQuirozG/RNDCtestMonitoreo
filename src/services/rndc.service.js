@@ -12,8 +12,8 @@ const rndcService = {
     /**
 * Encuentra los puntos GPS más cercanos a cada punto de control por viaje.
 * @param {Array} gpsPoints - Lista de puntos GPS [{ latitud, longitud, id_viaje }]
-* @param {Array} controlPoints - Lista de puntos de control [{ latitud, longitud, id_consulta }]
-* @param {Array} trips - Lista de viajes [{ id_consulta }]
+* @param {Array} controlPoints - Lista de puntos de control [{ latitud, longitud, id_viaje }]
+* @param {Array} trips - Lista de viajes [{ id_viaje }]
 * @returns {Array} Lista de coincidencias [{ viaje_id, punto_control_id, gps_id, distancia_m }]
 */
     async puntosCercanosPorViaje() {
@@ -32,7 +32,7 @@ const rndcService = {
 
             for (const manifiesto of manifiestos.data) {
 
-                const controlPoints = await DbConfig.executeQuery(`SELECT * FROM rndc_puntos_control WHERE estado != 2 AND id_consulta = ?`, [manifiesto.id_consulta]);
+                const controlPoints = await DbConfig.executeQuery(`SELECT * FROM rndc_puntos_control WHERE estado != 2 AND id_viaje = ?`, [manifiesto.id_viaje]);
                 if (!controlPoints.success) {
                     console.error('Error consultando puntos de control:', controlPoints.error);
                     continue;
@@ -45,12 +45,10 @@ const rndcService = {
                 }
 
                 const { puntosCargue, puntosDescargue } = puntosCargueDescargue.data;
-                console.log('Puntos de cargue:', puntosCargue);
-                console.log('Puntos de descargue:', puntosDescargue);
 
                 for (const punto of controlPoints.data) {
 
-                    const coordenadas = await DbConfig.executeQuery(`SELECT * FROM track_trailer WHERE id_viaje = ? ORDER BY dia_hora ASC`, [punto.id_consulta]);
+                    const coordenadas = await DbConfig.executeQuery(`SELECT * FROM track_trailer WHERE id_viaje = ? ORDER BY fecha_track ASC`, [punto.id_viaje]);
 
                     if (!coordenadas.success) {
                         console.error('Error consultando coordenadas GPS:', coordenadas.error);
@@ -133,7 +131,7 @@ const rndcService = {
 
             }
 
-            const fecha_llegada = coordenadas.data[masCercano.properties.featureIndex].dia_hora;
+            const fecha_llegada = coordenadas.data[masCercano.properties.featureIndex].fecha_track;
             console.log('Fecha llegada:', fecha_llegada);
             DbConfig.executeQuery(`UPDATE rndc_puntos_control SET estado = 1, fecha_llegada = ? WHERE id_punto = ?`, [new Date(fecha_llegada), punto.id_punto]);
             punto.fecha_salida = fecha_salida;
@@ -161,9 +159,12 @@ const rndcService = {
             }
 
             const puntoControl = turf.point([puntolon, puntolat]);
+            
             console.log("puntoControl:", puntoControl);
-            console.log("punto.fecha_llegada:", punto.fecha_llegada);
-            const datafiltered = coordenadas.data.filter(coord => (coord.dia_hora > punto.fecha_llegada && turf.distance(turf.point([coord.longitud, coord.latitud]), puntoControl) >= 1));
+            console.log("punto.fecha_llegada:", coordenadas);
+            console.log("punto.fecha_llegada:", coordenadas.data.filter(coord => coord.fecha_track > punto.fecha_llegada));
+
+            const datafiltered = coordenadas.data.filter(coord => (coord.fecha_track > punto.fecha_llegada && turf.distance(turf.point([coord.longitud, coord.latitud]), puntoControl) >= 1));
             const puntos = datafiltered.map(coord => { return turf.point([coord.longitud, coord.latitud]) });
             console.log("puntosssss:", puntos);
 
@@ -174,7 +175,7 @@ const rndcService = {
                 return { success: false, message: 'No se encontró punto de salida' };
             }
 
-            const fecha_salida = datafiltered[0].dia_hora;
+            const fecha_salida = datafiltered[0].fecha_track;
             DbConfig.executeQuery(`UPDATE rndc_puntos_control SET estado = 2, fecha_salida = ? WHERE id_punto = ?`, [new Date(fecha_salida), punto.id_punto]);
 
             punto.fecha_salida = fecha_salida;
@@ -215,7 +216,7 @@ const rndcService = {
         }
         ROOT.VARIABLES = {
             NUMIDGPS: coordenadasData.imei,
-            INGRESOIDMANIFIESTO: puntoControlData.id_consulta,
+            INGRESOIDMANIFIESTO: puntoControlData.id_viaje,
             CODPUNTOCONTROL: puntoControlData.id_punto,
             LATITUD: puntoControlData.latitud,
             LONGITUD: puntoControlData.longitud,
