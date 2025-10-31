@@ -81,7 +81,6 @@ const rndcService = {
                         }
 
                     }
-                    //crear el xml con la informacion
                 }
             }
             const xmlResponses = [];
@@ -131,15 +130,15 @@ const rndcService = {
             console.log('Punto GPS más cercano encontrado:', masCercano.geometry.coordinates);
             if (masCercano.properties.distanceToPoint > 1) {
                 const intentos = punto.intentos ? punto.intentos + 1 : 1;
-                console.log('Distancia al punto de control:', masCercano.geometry.coordinates);
+
                 DbConfig.executeQuery(`UPDATE rndc_puntos_control SET intentos_con_tracks = ?, ult_intento_con_tracks = ?, Fecha_ult_intento = ? WHERE id_punto = ?`, [intentos, JSON.stringify(masCercano.geometry.coordinates), new Date(), punto.id_punto]);
                 return { success: false, message: 'No se encontro punto de entrada registrada' };
 
             }
 
             const fecha_llegada = coordenadas.data[masCercano.properties.featureIndex].fecha_track;
-            console.log('Fecha llegada:', fecha_llegada);
-            DbConfig.executeQuery(`UPDATE rndc_puntos_control SET estado = 1, fecha_llegada = ?, Fecha_ult_intento = ? WHERE id_punto = ?`, [new Date(fecha_llegada), new Date(), punto.id_punto]);
+        
+            DbConfig.executeQuery(`UPDATE rndc_puntos_control SET estado = 1, fecha_llegada = ?, Fecha_ult_intento = ?, intentos_con_tracks=0, intentos_sin_tracks = 0 WHERE id_punto = ?`, [new Date(fecha_llegada), new Date(), punto.id_punto]);
             punto.fecha_salida = fecha_salida;
             return { success: true, message: 'Salida registrada', data: punto };
 
@@ -181,7 +180,7 @@ const rndcService = {
             }
 
             const fecha_salida = datafiltered[0].fecha_track;
-            DbConfig.executeQuery(`UPDATE rndc_puntos_control SET estado = 2, fecha_salida = ?, Fecha_ult_intento = ? WHERE id_punto = ?`, [new Date(fecha_salida), new Date(), punto.id_punto]);
+            DbConfig.executeQuery(`UPDATE rndc_puntos_control SET estado = 2, fecha_salida = ?, Fecha_ult_intento = ?, intentos_con_tracks=0, intentos_sin_tracks = 0 WHERE id_punto = ?`, [new Date(fecha_salida), new Date(), punto.id_punto]);
 
             punto.fecha_salida = fecha_salida;
             return { success: true, message: 'Salida registrada', data: punto };
