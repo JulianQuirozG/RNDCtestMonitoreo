@@ -186,6 +186,40 @@ class RNDCService {
         }
     }
 
+    async reportarNovedadRndc(data, tipo = 1) {
+        try {
+            console.log('🚀 Reportando novedad a RNDC con:', data, tipo);
+            const xmlData = `
+                    <SOLICITUD>
+                    <TIPO>1</TIPO>
+                    <PROCESOID>46</PROCESOID>
+                    </SOLICITUD>
+                    <VARIABLES>
+                    <NUMIDGPS>${data.NUMIDGPS}</NUMIDGPS>
+                    <INGRESOIDMANIFIESTO>${data.INGRESOIDMANIFIESTO}</INGRESOIDMANIFIESTO>
+                    <CODPUNTOCONTROL>${data.CODPUNTOCONTROL}</CODPUNTOCONTROL>
+                    <NUMPLACA>${data.NUMPLACA}</NUMPLACA>
+                    <CODNOVEDAD>${tipo}</CODNOVEDAD>
+                    </VARIABLES>`
+            //DESCOMENTAR PARA ENVIAR A RNDC
+            // const response = await this.atenderMensajeRNDC(xmlData, user.idEmpresa);
+            //if (!response.ok) {
+            //     return { success: true, data: [{ ...response, id_apirndc }] };
+            // } else {
+            //     return { success: false, data: [{ ...response, statusCode: 400 }] }
+            // }
+            //DESCOMENTAR PARA ENVIAR A RNDC
+            console.log('XML Data para RNDC:', xmlData);
+            return { statusCode: 200, error: false, success: true, message: 'Datos preparados para RNDC', data: xmlData };
+
+
+            const response = await this.atenderMensajeRNDC(xmlData, user.idEmpresa);
+        } catch (error) {
+            console.error('Error en reportarNovedadRndc:', error.message);
+            return { statusCode: 500, error: true, success: false, message: error.message, data: [] };
+        }
+    }
+
 
 }
 
