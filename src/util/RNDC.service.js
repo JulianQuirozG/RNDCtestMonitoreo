@@ -1,4 +1,8 @@
 const { RNDC_WS_DEMO_URL, nodeEnv } = require('../config/config');
+const axios = require('axios');
+const RNDCUtils = require('./RNDC.response.util');
+
+
 class RNDCService {
     constructor() {
         this.rndcWsDemoUrl = RNDC_WS_DEMO_URL;
@@ -8,16 +12,16 @@ class RNDCService {
 
     async atenderMensajeRNDC(data, idEmpresa) {
 
-        const [empresa] = await db.query('SELECT * FROM empresas WHERE id = ?', [idEmpresa]);
+        //const [empresa] = await db.query('SELECT * FROM empresas WHERE id = ?', [idEmpresa]);
 
         const xml = `<root>
                   <acceso>
-                     <username>${empresa[0].usuarioRndc}</username>
-                     <password>${empresa[0].claveRndc}</password>
+                     <username>TRANSEXMAR@2963</username>
+                     <password>+Nextcarga_*2024+</password>
                   </acceso>
                  ${data}
                  </root>`;
-        console.log("xml", xml)
+        console.log("xml::", xml)
         const soapRequest =
             `<soapenv:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:urn="urn:BPMServicesIntf-IBPMServices">
     <soapenv:Header/>
@@ -177,6 +181,38 @@ class RNDCService {
             if (response.ok) {
                 const id_apirndc = await RemesasRepository.save({ identificador_proceso: response.id, idUsuario: user.id, idEmpresa: user.idEmpresa, request: xmlData, response: JSON.stringify(response), status: 200 }, 'crear-remesa');
                 return { success: true, data: [{ ...response, id_apirndc }] };
+            } else {
+                return { success: false, data: [{ ...response, statusCode: 400 }] }
+            }
+        } catch (error) {
+            console.error('Error en RemesasService.create:', error);
+            throw { ...error, statusCode: error.statusCode || 500 }
+        }
+    }
+
+    async consultarManifiesto() {
+        try {
+            const xmlData = `
+ 
+                <solicitud>
+                    <tipo>3</tipo>
+                    <procesoid>4</procesoid>
+                </solicitud>
+                
+                <variables>
+                    NUMPLACA,INGRESOID,FECHAING,NUMMANIFIESTOCARGA
+                </variables>
+                <documento>
+                    <NUMNITEMPRESATRANSPORTE>9007319718</NUMNITEMPRESATRANSPORTE>
+                    <NUMMANIFIESTOCARGA>000012</NUMMANIFIESTOCARGA>
+                </documento>`;
+
+            const response = await this.atenderMensajeRNDC(xmlData);
+
+            console.log('Response from RNDC:', response);
+            if (response.ok) {
+                //const id_apirndc = await RemesasRepository.save({ identificador_proceso: response.id, idUsuario: user.id, idEmpresa: user.idEmpresa, request: xmlData, response: JSON.stringify(response), status: 200 }, 'crear-remesa');
+                return { success: true, data: [{ ...response }] };
             } else {
                 return { success: false, data: [{ ...response, statusCode: 400 }] }
             }
