@@ -21,8 +21,6 @@ class RNDCService {
                   </acceso>
                  ${data}
                  </root>`;
-
-        console.log('XML Enviado a RNDC:', xml);
         const soapRequest =
             `<soapenv:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:urn="urn:BPMServicesIntf-IBPMServices">
                 <soapenv:Header/>
