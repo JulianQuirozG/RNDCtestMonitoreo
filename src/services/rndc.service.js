@@ -135,7 +135,7 @@ const rndcService = {
 
             masCercano = masCercano.data;
             if (masCercano.properties.distanceToPoint > 1) {
-                const intentos = punto.intentos ? punto.intentos + 1 : 1;
+                const intentos = punto.intentos_con_tracks ? punto.intentos_con_tracks + 1 : 1;
 
                 DbConfig.executeQuery(`UPDATE rndc_puntos_control SET intentos_con_tracks = ?, ult_intento_con_tracks = ?, Fecha_ult_intento = ? WHERE id_punto = ?`, [intentos, JSON.stringify(masCercano.geometry.coordinates), new Date(), punto.id_punto]);
                 return { success: false, message: 'No se encontro punto de entrada registrada' };
@@ -174,7 +174,7 @@ const rndcService = {
             const puntos = datafiltered.map(coord => { return turf.point([coord.longitud, coord.latitud]) });
 
             if (!datafiltered || datafiltered.length <= 0) {
-                const intentos = punto.intentos ? punto.intentos + 1 : 1;
+                const intentos = punto.intentos_con_tracks ? punto.intentos_con_tracks + 1 : 1;
                 DbConfig.executeQuery(`UPDATE rndc_puntos_control SET intentos_con_tracks = ?, ult_intento_con_tracks = ?, Fecha_ult_intento = ? WHERE id_punto = ?`, [intentos, JSON.stringify(puntos[0].geometry.coordinates), new Date(), punto.id_punto]);
 
                 return { success: false, message: 'No se encontró punto de salida' };
