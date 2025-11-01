@@ -52,7 +52,7 @@ const rndcService = {
 
                 const { puntosCargueYDescargue } = puntosParaCYD.data;
 
-                for (const punto of controlPoints.data) {
+                for (let punto of controlPoints.data) {
 
                     const coordenadas = await DbConfig.executeQuery(`SELECT * FROM track_trailer WHERE id_viaje = ? ORDER BY fecha_track ASC`, [punto.id_viaje]);
                     
@@ -60,6 +60,7 @@ const rndcService = {
                         console.error('Error consultando coordenadas GPS:', coordenadas.error);
                         continue;
                     }
+                    //
 
                     //Si el punto de control ya fue evaluado lo saltamos
                     if (punto.estado == 2) continue;
@@ -89,6 +90,7 @@ const rndcService = {
                     //Si el punto esta en estado 0, generamos la entrada del vehiculo
                     if (punto.estado == 0) {
                         const generarEntrada = await this.generarEntrada(punto, coordenadas);
+                        if(generarEntrada.error || !generarEntrada.success) continue;
                     }
 
                     // Si el punto esta en estado 1, generamos la salida del vehiculo
@@ -148,6 +150,8 @@ const rndcService = {
             }
 
             const fecha_llegada = coordenadas.data[masCercano.properties.featureIndex].fecha_track;
+            punto.fecha_llegada = new Date(fecha_llegada);
+            punto.estado = 1;
 
             DbConfig.executeQuery(`UPDATE rndc_puntos_control SET estado = 1, fecha_llegada = ?, Fecha_ult_intento = ?, intentos_con_tracks=0, intentos_sin_tracks = 0 WHERE id_punto = ?`, [new Date(fecha_llegada), new Date(), punto.id_punto]);
             return { success: true, message: 'Salida registrada', data: punto };
@@ -188,6 +192,7 @@ const rndcService = {
             DbConfig.executeQuery(`UPDATE rndc_puntos_control SET estado = 2, fecha_salida = ?, Fecha_ult_intento = ?, intentos_con_tracks=0, intentos_sin_tracks = 0 WHERE id_punto = ?`, [new Date(fecha_salida), new Date(), punto.id_punto]);
 
             punto.fecha_salida = fecha_salida;
+            punto.estado = 1;
 
             return { success: true, message: 'Salida registrada', data: punto };
 
