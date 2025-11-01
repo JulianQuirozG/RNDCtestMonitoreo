@@ -1,4 +1,8 @@
 const { RNDC_WS_DEMO_URL, nodeEnv } = require('../config/config');
+const axios = require('axios');
+const RNDCUtils = require('./RNDC.response.util');
+const DbConfig = require('../config/db');
+
 class RNDCService {
     constructor() {
         this.rndcWsDemoUrl = RNDC_WS_DEMO_URL;
@@ -6,26 +10,26 @@ class RNDCService {
         this.entorno = nodeEnv;
     }
 
-    async atenderMensajeRNDC(data, idEmpresa) {
+    async atenderMensajeRNDC(data, idEmpresa = 1) {
 
-        const [empresa] = await db.query('SELECT * FROM empresas WHERE id = ?', [idEmpresa]);
+        const empresa = await DbConfig.executeQuery('SELECT * FROM empresas WHERE id = ?', [Number(idEmpresa)]);
 
         const xml = `<root>
                   <acceso>
-                     <username>${empresa[0].usuarioRndc}</username>
-                     <password>${empresa[0].claveRndc}</password>
+                     <username>${empresa.data[0].usuario}</username>
+                     <password>${empresa.data[0].contrasen}</password>
                   </acceso>
                  ${data}
                  </root>`;
         const soapRequest =
             `<soapenv:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:urn="urn:BPMServicesIntf-IBPMServices">
-    <soapenv:Header/>
-   <soapenv:Body>
-     <urn:AtenderMensajeBPM soapenv:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/">
-         <urn:Request>${xml}</urn:Request>
-     </urn:AtenderMensajeBPM>
-     </soapenv:Body>
-    </soapenv:Envelope>`;
+                <soapenv:Header/>
+                <soapenv:Body>
+                    <urn:AtenderMensajeBPM soapenv:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/">
+                        <urn:Request>${xml}</urn:Request>
+                    </urn:AtenderMensajeBPM>
+                </soapenv:Body>
+            </soapenv:Envelope>`;
 
         try {
 
@@ -185,6 +189,37 @@ class RNDCService {
         }
     }
 
+    async consultarManifiesto() {
+        try {
+            const xmlData = `
+ 
+                <solicitud>
+                    <tipo>3</tipo>
+                    <procesoid>4</procesoid>
+                </solicitud>
+                
+                <variables>
+                    INGRESOID,FECHAING,NUMNITEMPRESATRANSPORTE,NUMMANIFIESTOCARGA,CONSECUTIVOINFORMACIONVIAJE,MANNROMANIFIESTOTRANSBORDO,CODOPERACIONTRANSPORTE,FECHAEXPEDICIONMANIFIESTO,CODMUNICIPIOORIGENMANIFIESTO,CODMUNICIPIODESTINOMANIFIESTO,CODIDTITULARMANIFIESTO,NUMIDTITULARMANIFIESTO,NUMPLACA,NUMPLACAREMOLQUE,CODIDCONDUCTOR,NUMIDCONDUCTOR,CODIDCONDUCTOR2,NUMIDCONDUCTOR2,VALORFLETEPACTADOVIAJE,RETENCIONFUENTEMANIFIESTO,RETENCIONICAMANIFIESTOCARGA,VALORANTICIPOMANIFIESTO,CODMUNICIPIOPAGOSALDO,CODRESPONSABLEPAGOCARGUE,CODRESPONSABLEPAGODESCARGUE,FECHAPAGOSALDOMANIFIESTO,NITMONITOREOFLOTA,ACEPTACIONELECTRONICA,OBSERVACIONES,TIPOVALORPACTADO,SEGURIDADQR
+                </variables>
+                <documento>
+                    <NUMNITEMPRESATRANSPORTE>9007319718</NUMNITEMPRESATRANSPORTE>
+                </documento>`;
+
+            const response = await this.atenderMensajeRNDC(xmlData);
+
+            console.log('Response from RNDC:', response);
+            if (response.ok) {
+                //const id_apirndc = await RemesasRepository.save({ identificador_proceso: response.id, idUsuario: user.id, idEmpresa: user.idEmpresa, request: xmlData, response: JSON.stringify(response), status: 200 }, 'crear-remesa');
+                return { success: true, data: [{ ...response }] };
+            } else {
+                return { success: false, data: [{ ...response, statusCode: 400 }] }
+            }
+        } catch (error) {
+            console.error('Error en RemesasService.create:', error);
+            throw { ...error, statusCode: error.statusCode || 500 }
+        }
+    }
+    
     async reportarNovedadRndc(data, tipo = 1) {
         try {
             console.log('🚀 Reportando novedad a RNDC con:', data, tipo);

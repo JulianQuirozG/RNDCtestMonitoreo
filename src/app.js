@@ -4,9 +4,12 @@ const express = require('express');
 //Importar repositorios y servicios necesarios para el cron
 const DbConfig = require('./config/db');
 const config = require('./config/config');
+const rndcRoutes = require('./routes/rndc.routes');
 const app = express();
 const { rndcService } = require('./services/rndc.service');
 app.use(express.json());
+
+app.use('/api/rndc', rndcRoutes);
 
 // Initialize the database connection
 
@@ -20,7 +23,7 @@ app.use(express.json());
 })();
 
 
-// Ruta por defecto
+
 app.get('/', async (req, res) => {
     res.json(await rndcService.puntosCercanosPorViaje());
 });
