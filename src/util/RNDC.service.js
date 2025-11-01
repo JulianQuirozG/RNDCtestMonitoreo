@@ -1,7 +1,7 @@
 const { RNDC_WS_DEMO_URL, nodeEnv } = require('../config/config');
 const axios = require('axios');
 const RNDCUtils = require('./RNDC.response.util');
-
+const DbConfig = require('../config/db');
 
 class RNDCService {
     constructor() {
@@ -10,27 +10,26 @@ class RNDCService {
         this.entorno = nodeEnv;
     }
 
-    async atenderMensajeRNDC(data, idEmpresa) {
+    async atenderMensajeRNDC(data, idEmpresa = 1) {
 
-        //const [empresa] = await db.query('SELECT * FROM empresas WHERE id = ?', [idEmpresa]);
+        const empresa = await DbConfig.executeQuery('SELECT * FROM empresas WHERE id = ?', [Number(idEmpresa)]);
 
         const xml = `<root>
                   <acceso>
-                     <username>TRANSEXMAR@2963</username>
-                     <password>+Nextcarga_*2024+</password>
+                     <username>${empresa.data[0].usuario}</username>
+                     <password>${empresa.data[0].contrasen}</password>
                   </acceso>
                  ${data}
                  </root>`;
-        console.log("xml::", xml)
         const soapRequest =
             `<soapenv:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:urn="urn:BPMServicesIntf-IBPMServices">
-    <soapenv:Header/>
-   <soapenv:Body>
-     <urn:AtenderMensajeBPM soapenv:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/">
-         <urn:Request>${xml}</urn:Request>
-     </urn:AtenderMensajeBPM>
-     </soapenv:Body>
-    </soapenv:Envelope>`;
+                <soapenv:Header/>
+                <soapenv:Body>
+                    <urn:AtenderMensajeBPM soapenv:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/">
+                        <urn:Request>${xml}</urn:Request>
+                    </urn:AtenderMensajeBPM>
+                </soapenv:Body>
+            </soapenv:Envelope>`;
 
         try {
 
@@ -200,11 +199,10 @@ class RNDCService {
                 </solicitud>
                 
                 <variables>
-                    NUMPLACA,INGRESOID,FECHAING,NUMMANIFIESTOCARGA
+                    INGRESOID,FECHAING,NUMNITEMPRESATRANSPORTE,NUMMANIFIESTOCARGA,CONSECUTIVOINFORMACIONVIAJE,MANNROMANIFIESTOTRANSBORDO,CODOPERACIONTRANSPORTE,FECHAEXPEDICIONMANIFIESTO,CODMUNICIPIOORIGENMANIFIESTO,CODMUNICIPIODESTINOMANIFIESTO,CODIDTITULARMANIFIESTO,NUMIDTITULARMANIFIESTO,NUMPLACA,NUMPLACAREMOLQUE,CODIDCONDUCTOR,NUMIDCONDUCTOR,CODIDCONDUCTOR2,NUMIDCONDUCTOR2,VALORFLETEPACTADOVIAJE,RETENCIONFUENTEMANIFIESTO,RETENCIONICAMANIFIESTOCARGA,VALORANTICIPOMANIFIESTO,CODMUNICIPIOPAGOSALDO,CODRESPONSABLEPAGOCARGUE,CODRESPONSABLEPAGODESCARGUE,FECHAPAGOSALDOMANIFIESTO,NITMONITOREOFLOTA,ACEPTACIONELECTRONICA,OBSERVACIONES,TIPOVALORPACTADO,SEGURIDADQR
                 </variables>
                 <documento>
                     <NUMNITEMPRESATRANSPORTE>9007319718</NUMNITEMPRESATRANSPORTE>
-                    <NUMMANIFIESTOCARGA>000012</NUMMANIFIESTOCARGA>
                 </documento>`;
 
             const response = await this.atenderMensajeRNDC(xmlData);
