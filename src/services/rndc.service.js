@@ -30,7 +30,7 @@ const rndcService = {
             }
 
             if (!manifiestos.data || manifiestos.data.length <= 0) {
-                console.log('No hay manifiestos activos para procesar.');
+                console.error('No hay manifiestos activos para procesar.');
                 return { statusCode: 200, message: 'No hay manifiestos para procesar', data: {} };
             }
 
@@ -55,18 +55,16 @@ const rndcService = {
                 for (const punto of controlPoints.data) {
 
                     const coordenadas = await DbConfig.executeQuery(`SELECT * FROM track_trailer WHERE id_viaje = ? ORDER BY fecha_track ASC`, [punto.id_viaje]);
-
-                    if (!coordenadas.success || punto.estado == 2) {
+                    if (!coordenadas.success) {
                         console.error('Error consultando coordenadas GPS:', coordenadas.error);
                         continue;
                     }
 
+                    if (punto.estado == 2)  continue;
+                    
+
                     if (punto.estado == 0) {
-
                         const generarEntrada = await this.generarEntrada(punto, coordenadas);
-                        console.log('generarEntrada', generarEntrada);
-
-
                     }
 
                     //Verifico que los puntos de cargue y descargue cumplan con los tiempos pactados
@@ -76,11 +74,12 @@ const rndcService = {
                         //Si no cumple con los tiempos, se tiene que enviar un reporte de novedad a RNDC
                         if(!puntosCargueDescargueValidos.data) {
                             const reporteNovedad = await rndcConectionService.reportarNovedadRndc({
-                                NUMIDGPS: coordenadas[0].imei,
+                                NUMIDGPS: coordenadas.data[0].imei,
                                 INGRESOIDMANIFIESTO: punto.id_viaje,
                                 CODPUNTOCONTROL: punto.id_punto,
                                 NUMPLACA: manifiesto.placa_vehiculo,
                              }, 1);
+
                             if(!reporteNovedad || !reporteNovedad.success){
                                 console.error('Error reportando novedad a RNDC para el punto de control ID:', punto.id_punto);
                                 continue;
@@ -90,15 +89,10 @@ const rndcService = {
 
                     if (punto.estado == 1) {
                         const generarSalida = await this.generarSalida(punto, coordenadas);
-
                         if (generarSalida && generarSalida.success) {
-
                             const tipoXml = puntosCargueYDescargue.includes(punto.id_punto) ? TIPO_INGRESO.CARGUE : TIPO_INGRESO.SALIDA;
-                            console.log('Tipo de XML a generar:', tipoXml);
-
                             const xmlJson = this.generarXMLINJSON(manifiesto, generarSalida.data, coordenadas.data[0], tipoXml);
                             resultados.push({ tipo: tipoXml, data: xmlJson.data });
-                            console.log('XML/JSON generado para salida:', xmlJson);
                         }
 
                     }
@@ -119,7 +113,6 @@ const rndcService = {
                 }
 
             }
-            console.log('Respuestas XML RNDC:', xmlResponses);
 
             return { statusCode: 200, data: [resultados, xmlResponses] };
 
@@ -134,22 +127,6 @@ const rndcService = {
             const validarCoordenadas = await this.validarCoordenadasGPS(punto, coordenadas)
             if (!validarCoordenadas.success) return validarCoordenadas;
             
-
-            // if (isNaN(puntolat) || isNaN(puntolon)) {
-            //     console.error('Coordenadas del punto de control inválidas:', punto.latitud, punto.longitud);
-            //     return { success: false, message: 'Coordenadas del punto de control inválidas' };
-            // }
-
-            // if (!coordenadas.data || coordenadas.data.length <= 0) {
-            //     return { success: false, message: 'No hay coordenadas GPS disponibles' };
-            // }
-
-            // const puntoControl = turf.point([puntolon, puntolat]);
-
-            // const puntos = coordenadas.data.map(coord => { return turf.point([coord.longitud, coord.latitud]) });
-
-            // const masCercano = turf.nearestPoint(puntoControl, turf.featureCollection(puntos));
-            console.log("puntoControl:", coordenadas.data);
             let masCercano = turfUtils.getNearestPoint(punto, coordenadas.data);
             if (!masCercano.success) {
                 console.error('Error al obtener el punto más cercano:', masCercano.message);
@@ -157,7 +134,6 @@ const rndcService = {
             }
 
             masCercano = masCercano.data;
-            console.log('Punto GPS más cercano encontrado:', masCercano.geometry.coordinates);
             if (masCercano.properties.distanceToPoint > 1) {
                 const intentos = punto.intentos ? punto.intentos + 1 : 1;
 
@@ -194,13 +170,8 @@ const rndcService = {
 
             const puntoControl = turf.point([puntolon, puntolat]);
 
-            console.log("puntoControl:", puntoControl);
-            console.log("punto.fecha_llegada:", coordenadas);
-            console.log("punto.fecha_llegada:", coordenadas.data.filter(coord => coord.fecha_track > punto.fecha_llegada));
-
             const datafiltered = coordenadas.data.filter(coord => (coord.fecha_track > punto.fecha_llegada && turf.distance(turf.point([coord.longitud, coord.latitud]), puntoControl) >= 1));
             const puntos = datafiltered.map(coord => { return turf.point([coord.longitud, coord.latitud]) });
-            console.log("puntosssss:", puntos);
 
             if (!datafiltered || datafiltered.length <= 0) {
                 const intentos = punto.intentos ? punto.intentos + 1 : 1;
@@ -228,7 +199,7 @@ const rndcService = {
             for (const punto of puntos) {
                 if (punto.fecha_cita) puntosCargueYDescargue.push(punto.id_punto);
             }
-            console.log('Puntos de cargue/descargue encontrados:', puntosCargueYDescargue);
+
             return { success: true, data: { puntosCargueYDescargue } };
         } catch (error) {
             console.error('Error en obtenerPuntosDeCargueDescargue:', error.message);
@@ -276,14 +247,13 @@ const rndcService = {
             const fechaCita = new Date(punto.fecha_cita);
 
             //Obtengo el punto mas cercano al punto de control
-            console.log("puntoControl------------------------:", coordenadas);
             const masCercano = turfUtils.getNearestPoint(punto, coordenadas);
             if (!masCercano.success) {
                 console.error('Error al obtener el punto más cercano:', masCercano.message);
                 return { success: false, message: masCercano.message };
             }
 
-            const fechaActual = new Date(masCercano.data.dia_hora);
+            const fechaActual = new Date(coordenadas[masCercano.data.properties.featureIndex].fecha_track);
 
             //Calcular la diferencia en dias entre las dos fechas
             const diffDays = dateUtils.getDiffDaysByDates(fechaCita, fechaActual)
@@ -291,6 +261,7 @@ const rndcService = {
             
             //Verifico si la diferencia es mayor a 1 dias
             const diferenciaDias = diffDays.data;
+
             if(diferenciaDias >= 1) return { error: false, success: false, data: false, message: `El punto de control ID ${punto.id_punto} no cumple con el tiempo pactado. Diferencia de ${diferenciaDias} días.` };
 
             //Si todo esta bien, retorno el exito

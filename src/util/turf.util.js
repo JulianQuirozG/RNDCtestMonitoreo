@@ -2,8 +2,6 @@ const turf = require('@turf/turf');
 const turfUtils = {
     getNearestPoint: (point, points) => {
         try {
-            console.log('Punto de control:', point);
-            console.log('Lista de puntos GPS:', points);
             //Extraer latitud y longitud del punto
             const puntolat = parseFloat(point.latitud);
             const puntolon = parseFloat(point.longitud);
