@@ -60,8 +60,8 @@ const rndcService = {
                         continue;
                     }
 
-                    if (punto.estado == 2)  continue;
-                    
+                    if (punto.estado == 2) continue;
+
 
                     if (punto.estado == 0) {
                         const generarEntrada = await this.generarEntrada(punto, coordenadas);
@@ -72,15 +72,17 @@ const rndcService = {
                         const puntosCargueDescargueValidos = this.verificarTiemposPuntosCargueDescargue(punto, coordenadas.data);
 
                         //Si no cumple con los tiempos, se tiene que enviar un reporte de novedad a RNDC
-                        if(!puntosCargueDescargueValidos.data) {
+                        if (!puntosCargueDescargueValidos.data) {
                             const reporteNovedad = await rndcConectionService.reportarNovedadRndc({
                                 NUMIDGPS: coordenadas.data[0].imei,
                                 INGRESOIDMANIFIESTO: punto.id_viaje,
                                 CODPUNTOCONTROL: punto.id_punto,
                                 NUMPLACA: manifiesto.placa_vehiculo,
-                             }, 1);
+                            }, 1);
 
-                            if(!reporteNovedad || !reporteNovedad.success){
+                            resultados.push({ tipo: 'novedad', data: reporteNovedad.data });
+
+                            if (!reporteNovedad || !reporteNovedad.success) {
                                 console.error('Error reportando novedad a RNDC para el punto de control ID:', punto.id_punto);
                                 continue;
                             }
@@ -126,7 +128,7 @@ const rndcService = {
 
             const validarCoordenadas = await this.validarCoordenadasGPS(punto, coordenadas)
             if (!validarCoordenadas.success) return validarCoordenadas;
-            
+
             let masCercano = turfUtils.getNearestPoint(punto, coordenadas.data);
             if (!masCercano.success) {
                 console.error('Error al obtener el punto más cercano:', masCercano.message);
@@ -143,9 +145,8 @@ const rndcService = {
             }
 
             const fecha_llegada = coordenadas.data[masCercano.properties.featureIndex].fecha_track;
-        
+
             DbConfig.executeQuery(`UPDATE rndc_puntos_control SET estado = 1, fecha_llegada = ?, Fecha_ult_intento = ?, intentos_con_tracks=0, intentos_sin_tracks = 0 WHERE id_punto = ?`, [new Date(fecha_llegada), new Date(), punto.id_punto]);
-            punto.fecha_salida = fecha_salida;
             return { success: true, message: 'Salida registrada', data: punto };
 
         } catch (error) {
@@ -169,10 +170,10 @@ const rndcService = {
             }
 
             const puntoControl = turf.point([puntolon, puntolat]);
-
+ 
             const datafiltered = coordenadas.data.filter(coord => (coord.fecha_track > punto.fecha_llegada && turf.distance(turf.point([coord.longitud, coord.latitud]), puntoControl) >= 1));
             const puntos = datafiltered.map(coord => { return turf.point([coord.longitud, coord.latitud]) });
-
+            
             if (!datafiltered || datafiltered.length <= 0) {
                 const intentos = punto.intentos_con_tracks ? punto.intentos_con_tracks + 1 : 1;
                 DbConfig.executeQuery(`UPDATE rndc_puntos_control SET intentos_con_tracks = ?, ult_intento_con_tracks = ?, Fecha_ult_intento = ? WHERE id_punto = ?`, [intentos, JSON.stringify(puntos[0].geometry.coordinates), new Date(), punto.id_punto]);
@@ -184,6 +185,7 @@ const rndcService = {
             DbConfig.executeQuery(`UPDATE rndc_puntos_control SET estado = 2, fecha_salida = ?, Fecha_ult_intento = ?, intentos_con_tracks=0, intentos_sin_tracks = 0 WHERE id_punto = ?`, [new Date(fecha_salida), new Date(), punto.id_punto]);
 
             punto.fecha_salida = fecha_salida;
+            
             return { success: true, message: 'Salida registrada', data: punto };
 
         } catch (error) {
@@ -241,7 +243,7 @@ const rndcService = {
         return { success: true, data: { VERSION, ENCODING, ROOT } };
     },
 
-    verificarTiemposPuntosCargueDescargue(punto, coordenadas){
+    verificarTiemposPuntosCargueDescargue(punto, coordenadas) {
         try {
             // Obtengo la fecha de la cita y la fecha mas actualizada del gps
             const fechaCita = new Date(punto.fecha_cita);
@@ -257,16 +259,16 @@ const rndcService = {
 
             //Calcular la diferencia en dias entre las dos fechas
             const diffDays = dateUtils.getDiffDaysByDates(fechaCita, fechaActual)
-            if(!diffDays.success) return { error: false, success: false, data: [], message: `Error al calcular la diferencia de días para el punto de control ID ${punto.id_punto}.` };
-            
+            if (!diffDays.success) return { error: false, success: false, data: [], message: `Error al calcular la diferencia de días para el punto de control ID ${punto.id_punto}.` };
+
             //Verifico si la diferencia es mayor a 1 dias
             const diferenciaDias = diffDays.data;
 
-            if(diferenciaDias >= 1) return { error: false, success: false, data: false, message: `El punto de control ID ${punto.id_punto} no cumple con el tiempo pactado. Diferencia de ${diferenciaDias} días.` };
+            if (diferenciaDias >= 1) return { error: false, success: false, data: false, message: `El punto de control ID ${punto.id_punto} no cumple con el tiempo pactado. Diferencia de ${diferenciaDias} días.` };
 
             //Si todo esta bien, retorno el exito
             return { error: false, success: true, message: 'El punto de control cumple con el tiempo pactado.', data: true };
-        }catch (error) {
+        } catch (error) {
             console.error('Error en validarCoordenadasGPS:', error.message);
             return { success: false, error: error.message };
         }
