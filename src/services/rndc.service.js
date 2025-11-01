@@ -53,8 +53,15 @@ const rndcService = {
                 const { puntosCargueYDescargue } = puntosParaCYD.data;
 
                 for (const punto of controlPoints.data) {
+                    let query = `SELECT * FROM track_trailer WHERE id_viaje = ? ORDER BY fecha_track ASC`;
+                    const variablesQuery = [punto.id_viaje];
 
-                    const coordenadas = await DbConfig.executeQuery(`SELECT * FROM track_trailer WHERE id_viaje = ? ORDER BY fecha_track ASC`, [punto.id_viaje]);
+                    if (punto.fecha_ult_track) {
+                        query = `SELECT * FROM track_trailer WHERE id_viaje = ? AND fecha_track > ? ORDER BY fecha_track ASC`;
+                        variablesQuery.push(punto.fecha_ult_track);
+                    }
+                    
+                    const coordenadas = await DbConfig.executeQuery(query, variablesQuery);
                     if (!coordenadas.success) {
                         console.error('Error consultando coordenadas GPS:', coordenadas.error);
                         continue;
@@ -146,7 +153,7 @@ const rndcService = {
 
             const fecha_llegada = coordenadas.data[masCercano.properties.featureIndex].fecha_track;
 
-            DbConfig.executeQuery(`UPDATE rndc_puntos_control SET estado = 1, fecha_llegada = ?, Fecha_ult_intento = ?, intentos_con_tracks=0, intentos_sin_tracks = 0 WHERE id_punto = ?`, [new Date(fecha_llegada), new Date(), punto.id_punto]);
+            DbConfig.executeQuery(`UPDATE rndc_puntos_control SET estado = 1, fecha_llegada = ?, Fecha_ult_intento = ?, intentos_con_tracks=0, intentos_sin_tracks = 0, fecha_ult_track = ? WHERE id_punto = ?`, [new Date(fecha_llegada), new Date(), new Date(fecha_llegada), punto.id_punto]);
             return { success: true, message: 'Salida registrada', data: punto };
 
         } catch (error) {
@@ -184,10 +191,10 @@ const rndcService = {
             }
 
             const fecha_salida = coordenadasValidasDistancia[0].fecha_track;
-            DbConfig.executeQuery(`UPDATE rndc_puntos_control SET estado = 2, fecha_salida = ?, Fecha_ult_intento = ?, intentos_con_tracks=0, intentos_sin_tracks = 0 WHERE id_punto = ?`, [new Date(fecha_salida), new Date(), punto.id_punto]);
+            DbConfig.executeQuery(`UPDATE rndc_puntos_control SET estado = 2, fecha_salida = ?, Fecha_ult_intento = ?, intentos_con_tracks=0, intentos_sin_tracks = 0, fecha_ult_track = ? WHERE id_punto = ?`, [new Date(fecha_salida), new Date(), new Date(fecha_salida), punto.id_punto]);
 
             punto.fecha_salida = fecha_salida;
-            
+
             return { success: true, message: 'Salida registrada', data: punto };
 
         } catch (error) {
