@@ -112,22 +112,24 @@ class RNDCService {
             const dataRMM = data.ROOT.VARIABLES;
             console.log('🚀 Llamando a API RNDC con:', data, user);
             const xmlData = `
-                    <solicitud>
-                    <tipo>1</tipo>
-                    <procesoid>3</procesoid>
-                    </solicitud>
-                    <variables>
+                     <SOLICITUD>
+                    <TIPO>1</TIPO>
+                    <PROCESOID>60</PROCESOID>
+                    </SOLICITUD>
+                    <VARIABLES>
                     <NUMIDGPS>${dataRMM.NUMIDGPS}</NUMIDGPS>
                     <INGRESOIDMANIFIESTO>${dataRMM.INGRESOIDMANIFIESTO}</INGRESOIDMANIFIESTO>
+                    <NUMPLACA>${dataRMM.PLACA}</NUMPLACA>
                     <CODPUNTOCONTROL>${dataRMM.CODPUNTOCONTROL}</CODPUNTOCONTROL>
                     <LATITUD>${dataRMM.LATITUD}</LATITUD>
                     <LONGITUD>${dataRMM.LONGITUD}</LONGITUD>
-                    <PLACA>${dataRMM.PLACA}</PLACA>
                     <FECHALLEGADA>${dataRMM.FECHALLEGADA}</FECHALLEGADA>
                     <HORALLEGADA>${dataRMM.HORALLEGADA}</HORALLEGADA>
                     <FECHASALIDA>${dataRMM.FECHASALIDA}</FECHASALIDA>
                     <HORASALIDA>${dataRMM.HORASALIDA}</HORASALIDA>
-                    </variables>`
+                    </VARIABLES>`
+
+            console.log('XML Data:', xmlData);
 
             return { statusCode: 200, data: xmlData };
 
@@ -149,19 +151,18 @@ class RNDCService {
     async createRegistroCargueDescargue(data, user) {
         try {
             const dataRMM = data.ROOT.VARIABLES;
-            console.log('🚀 Llamando a API RNDC con:', data, user);
             const xmlData = `
-                    <solicitud>
-                    <tipo>1</tipo>
-                    <procesoid>3</procesoid>
-                    </solicitud>
-                    <variables>
+                    <SOLICITUD>
+                    <TIPO>1</TIPO>
+                    <PROCESOID>60</PROCESOID>
+                    </SOLICITUD>
+                    <VARIABLES>
                     <NUMIDGPS>${dataRMM.NUMIDGPS}</NUMIDGPS>
                     <INGRESOIDMANIFIESTO>${dataRMM.INGRESOIDMANIFIESTO}</INGRESOIDMANIFIESTO>
+                    <NUMPLACA>${dataRMM.PLACA}</NUMPLACA>
                     <CODPUNTOCONTROL>${dataRMM.CODPUNTOCONTROL}</CODPUNTOCONTROL>
                     <LATITUD>${dataRMM.LATITUD}</LATITUD>
                     <LONGITUD>${dataRMM.LONGITUD}</LONGITUD>
-                    <PLACA>${dataRMM.PLACA}</PLACA>
                     <FECHALLEGADA>${dataRMM.FECHALLEGADA}</FECHALLEGADA>
                     <HORALLEGADA>${dataRMM.HORALLEGADA}</HORALLEGADA>
                     <FECHASALIDA>${dataRMM.FECHASALIDA}</FECHASALIDA>
@@ -170,8 +171,9 @@ class RNDCService {
                     <HORAENTRADA>${dataRMM.HORAENTRADA}</HORAENTRADA>
                     <TIPOIDCONDUCTOR>${dataRMM.TIPOIDCONDUCTOR}</TIPOIDCONDUCTOR>
                     <NUMIDCONDUCTOR>${dataRMM.NUMIDCONDUCTOR}</NUMIDCONDUCTOR>
-                    </variables>`
+                    </VARIABLES>`
 
+            console.log('XML Data:', xmlData);
             return { statusCode: 200, data: xmlData };
 
             const response = await this.atenderMensajeRNDC(xmlData, user.idEmpresa);
@@ -219,7 +221,7 @@ class RNDCService {
             throw { ...error, statusCode: error.statusCode || 500 }
         }
     }
-    
+
     async reportarNovedadRndc(data, tipo = 1) {
         try {
             console.log('🚀 Reportando novedad a RNDC con:', data, tipo);
