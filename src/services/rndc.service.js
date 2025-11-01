@@ -80,6 +80,8 @@ const rndcService = {
                                 NUMPLACA: manifiesto.placa_vehiculo,
                              }, 1);
 
+                             resultados.push({ tipo: 'novedad', data: reporteNovedad.data });
+
                             if(!reporteNovedad || !reporteNovedad.success){
                                 console.error('Error reportando novedad a RNDC para el punto de control ID:', punto.id_punto);
                                 continue;
