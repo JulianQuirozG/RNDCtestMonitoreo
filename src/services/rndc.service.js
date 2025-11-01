@@ -80,6 +80,8 @@ const rndcService = {
                                 NUMPLACA: manifiesto.placa_vehiculo,
                             }, 1);
 
+                            resultados.push({ tipo: 'novedad', data: reporteNovedad.data });
+
                             if (!reporteNovedad || !reporteNovedad.success) {
                                 console.error('Error reportando novedad a RNDC para el punto de control ID:', punto.id_punto);
                                 continue;
@@ -145,7 +147,6 @@ const rndcService = {
             const fecha_llegada = coordenadas.data[masCercano.properties.featureIndex].fecha_track;
 
             DbConfig.executeQuery(`UPDATE rndc_puntos_control SET estado = 1, fecha_llegada = ?, Fecha_ult_intento = ?, intentos_con_tracks=0, intentos_sin_tracks = 0 WHERE id_punto = ?`, [new Date(fecha_llegada), new Date(), punto.id_punto]);
-            punto.fecha_salida = fecha_salida;
             return { success: true, message: 'Salida registrada', data: punto };
 
         } catch (error) {
@@ -186,6 +187,7 @@ const rndcService = {
             DbConfig.executeQuery(`UPDATE rndc_puntos_control SET estado = 2, fecha_salida = ?, Fecha_ult_intento = ?, intentos_con_tracks=0, intentos_sin_tracks = 0 WHERE id_punto = ?`, [new Date(fecha_salida), new Date(), punto.id_punto]);
 
             punto.fecha_salida = fecha_salida;
+            
             return { success: true, message: 'Salida registrada', data: punto };
 
         } catch (error) {
