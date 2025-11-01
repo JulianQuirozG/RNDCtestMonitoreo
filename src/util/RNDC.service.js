@@ -21,6 +21,8 @@ class RNDCService {
                   </acceso>
                  ${data}
                  </root>`;
+
+        console.log('XML Enviado a RNDC:', xml);
         const soapRequest =
             `<soapenv:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:urn="urn:BPMServicesIntf-IBPMServices">
                 <soapenv:Header/>
@@ -36,7 +38,7 @@ class RNDCService {
             const response = await axios.post(this.rndcWsDemoUrl, soapRequest, {
                 headers: { 'Content-Type': 'text/xml' }
             });
-            console.log("Respuesta Http -: ", response.data);
+            //console.log("Respuesta Http -: ", response.data);
             return await RNDCUtils.validateRNDCResponse(response.data);
 
         } catch (error) {
@@ -205,6 +207,8 @@ class RNDCService {
                 </variables>
                 <documento>
                     <NUMNITEMPRESATRANSPORTE>9007319718</NUMNITEMPRESATRANSPORTE>
+                    <nummanifiestocarga>000012</nummanifiestocarga>
+
                 </documento>`;
 
             const response = await this.atenderMensajeRNDC(xmlData);

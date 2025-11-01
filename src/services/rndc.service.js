@@ -53,8 +53,15 @@ const rndcService = {
                 const { puntosCargueYDescargue } = puntosParaCYD.data;
 
                 for (const punto of controlPoints.data) {
+                    let query = `SELECT * FROM track_trailer WHERE id_viaje = ? ORDER BY fecha_track ASC`;
+                    const variablesQuery = [punto.id_viaje];
 
-                    const coordenadas = await DbConfig.executeQuery(`SELECT * FROM track_trailer WHERE id_viaje = ? ORDER BY fecha_track ASC`, [punto.id_viaje]);
+                    if (punto.fecha_ult_track) {
+                        query = `SELECT * FROM track_trailer WHERE id_viaje = ? AND fecha_track > ? ORDER BY fecha_track ASC`;
+                        variablesQuery.push(punto.fecha_ult_track);
+                    }
+                    
+                    const coordenadas = await DbConfig.executeQuery(query, variablesQuery);
                     if (!coordenadas.success) {
                         console.error('Error consultando coordenadas GPS:', coordenadas.error);
                         continue;
@@ -146,7 +153,7 @@ const rndcService = {
 
             const fecha_llegada = coordenadas.data[masCercano.properties.featureIndex].fecha_track;
 
-            DbConfig.executeQuery(`UPDATE rndc_puntos_control SET estado = 1, fecha_llegada = ?, Fecha_ult_intento = ?, intentos_con_tracks=0, intentos_sin_tracks = 0 WHERE id_punto = ?`, [new Date(fecha_llegada), new Date(), punto.id_punto]);
+            DbConfig.executeQuery(`UPDATE rndc_puntos_control SET estado = 1, fecha_llegada = ?, Fecha_ult_intento = ?, intentos_con_tracks=0, intentos_sin_tracks = 0, fecha_ult_track = ? WHERE id_punto = ?`, [new Date(fecha_llegada), new Date(), new Date(fecha_llegada), punto.id_punto]);
             return { success: true, message: 'Salida registrada', data: punto };
 
         } catch (error) {
@@ -158,7 +165,8 @@ const rndcService = {
     async generarSalida(punto, coordenadas) {
         try {
 
-            const validarCoordenadas = await this.validarCoordenadasGPS(punto, coordenadas)
+            const coordenadasValidasFecha = coordenadas.data.filter(coord => (coord.fecha_track > punto.fecha_llegada));
+            const validarCoordenadas = await this.validarCoordenadasGPS(punto, coordenadasValidasFecha);
             if (!validarCoordenadas.success) return validarCoordenadas;
 
             const puntolat = parseFloat(punto.latitud);
@@ -170,22 +178,23 @@ const rndcService = {
             }
 
             const puntoControl = turf.point([puntolon, puntolat]);
- 
-            const datafiltered = coordenadas.data.filter(coord => (coord.fecha_track > punto.fecha_llegada && turf.distance(turf.point([coord.longitud, coord.latitud]), puntoControl) >= 1));
-            const puntos = datafiltered.map(coord => { return turf.point([coord.longitud, coord.latitud]) });
-            
-            if (!datafiltered || datafiltered.length <= 0) {
+            const coordenadasValidasDistancia = coordenadas.data.filter(coord => (coord.fecha_track > punto.fecha_llegada && turf.distance(turf.point([coord.longitud, coord.latitud]), puntoControl) >= 1));
+            const puntos = coordenadasValidasDistancia.map(coord => { return turf.point([coord.longitud, coord.latitud]) });
+
+            if (!coordenadasValidasDistancia || coordenadasValidasDistancia.length <= 0) {
+
                 const intentos = punto.intentos_con_tracks ? punto.intentos_con_tracks + 1 : 1;
-                DbConfig.executeQuery(`UPDATE rndc_puntos_control SET intentos_con_tracks = ?, ult_intento_con_tracks = ?, Fecha_ult_intento = ? WHERE id_punto = ?`, [intentos, JSON.stringify(puntos[0].geometry.coordinates), new Date(), punto.id_punto]);
+                const ultimoPunto = turf.point([coordenadasValidasFecha[coordenadasValidasFecha.length - 1].longitud, coordenadasValidasFecha[coordenadasValidasFecha.length - 1].latitud]);
+                DbConfig.executeQuery(`UPDATE rndc_puntos_control SET intentos_con_tracks = ?, ult_intento_con_tracks = ?, Fecha_ult_intento = ? WHERE id_punto = ?`, [intentos, JSON.stringify(ultimoPunto.geometry.coordinates), new Date(), punto.id_punto]);
 
                 return { success: false, message: 'No se encontró punto de salida' };
             }
 
-            const fecha_salida = datafiltered[0].fecha_track;
-            DbConfig.executeQuery(`UPDATE rndc_puntos_control SET estado = 2, fecha_salida = ?, Fecha_ult_intento = ?, intentos_con_tracks=0, intentos_sin_tracks = 0 WHERE id_punto = ?`, [new Date(fecha_salida), new Date(), punto.id_punto]);
+            const fecha_salida = coordenadasValidasDistancia[0].fecha_track;
+            DbConfig.executeQuery(`UPDATE rndc_puntos_control SET estado = 2, fecha_salida = ?, Fecha_ult_intento = ?, intentos_con_tracks=0, intentos_sin_tracks = 0, fecha_ult_track = ? WHERE id_punto = ?`, [new Date(fecha_salida), new Date(), new Date(fecha_salida), punto.id_punto]);
 
             punto.fecha_salida = fecha_salida;
-            
+
             return { success: true, message: 'Salida registrada', data: punto };
 
         } catch (error) {
