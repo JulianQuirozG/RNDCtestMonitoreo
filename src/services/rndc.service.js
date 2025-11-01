@@ -55,17 +55,14 @@ const rndcService = {
                 for (const punto of controlPoints.data) {
 
                     const coordenadas = await DbConfig.executeQuery(`SELECT * FROM track_trailer WHERE id_viaje = ? ORDER BY fecha_track ASC`, [punto.id_viaje]);
+                    
                     if (!coordenadas.success) {
                         console.error('Error consultando coordenadas GPS:', coordenadas.error);
                         continue;
                     }
 
+                    //Si el punto de control ya fue evaluado lo saltamos
                     if (punto.estado == 2) continue;
-
-
-                    if (punto.estado == 0) {
-                        const generarEntrada = await this.generarEntrada(punto, coordenadas);
-                    }
 
                     //Verifico que los puntos de cargue y descargue cumplan con los tiempos pactados
                     if (punto.fecha_cita) {
@@ -80,7 +77,7 @@ const rndcService = {
                                 NUMPLACA: manifiesto.placa_vehiculo,
                             }, 1);
 
-                            resultados.push({ tipo: 'novedad', data: reporteNovedad.data });
+                            //resultados.push({ tipo: 'novedad', data: reporteNovedad.data });
 
                             if (!reporteNovedad || !reporteNovedad.success) {
                                 console.error('Error reportando novedad a RNDC para el punto de control ID:', punto.id_punto);
@@ -89,6 +86,12 @@ const rndcService = {
                         }
                     }
 
+                    //Si el punto esta en estado 0, generamos la entrada del vehiculo
+                    if (punto.estado == 0) {
+                        const generarEntrada = await this.generarEntrada(punto, coordenadas);
+                    }
+
+                    // Si el punto esta en estado 1, generamos la salida del vehiculo
                     if (punto.estado == 1) {
                         const generarSalida = await this.generarSalida(punto, coordenadas);
                         if (generarSalida && generarSalida.success) {
@@ -170,10 +173,10 @@ const rndcService = {
             }
 
             const puntoControl = turf.point([puntolon, puntolat]);
- 
+
             const datafiltered = coordenadas.data.filter(coord => (coord.fecha_track > punto.fecha_llegada && turf.distance(turf.point([coord.longitud, coord.latitud]), puntoControl) >= 1));
             const puntos = datafiltered.map(coord => { return turf.point([coord.longitud, coord.latitud]) });
-            
+
             if (!datafiltered || datafiltered.length <= 0) {
                 const intentos = punto.intentos_con_tracks ? punto.intentos_con_tracks + 1 : 1;
                 DbConfig.executeQuery(`UPDATE rndc_puntos_control SET intentos_con_tracks = ?, ult_intento_con_tracks = ?, Fecha_ult_intento = ? WHERE id_punto = ?`, [intentos, JSON.stringify(puntos[0].geometry.coordinates), new Date(), punto.id_punto]);
@@ -185,7 +188,7 @@ const rndcService = {
             DbConfig.executeQuery(`UPDATE rndc_puntos_control SET estado = 2, fecha_salida = ?, Fecha_ult_intento = ?, intentos_con_tracks=0, intentos_sin_tracks = 0 WHERE id_punto = ?`, [new Date(fecha_salida), new Date(), punto.id_punto]);
 
             punto.fecha_salida = fecha_salida;
-            
+
             return { success: true, message: 'Salida registrada', data: punto };
 
         } catch (error) {
