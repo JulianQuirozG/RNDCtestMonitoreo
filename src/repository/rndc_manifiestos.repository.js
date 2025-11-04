@@ -26,7 +26,7 @@ const rndcManifiestoRepository = {
     async getManifiestoByingresoidmanifiesto(ingresoidmanifiesto) {
         try {
             const manifiestoQuery = await DbConfig.executeQuery(`SELECT * FROM rndc_consultas WHERE numero_manifiesto = ?`, [ingresoidmanifiesto]);
-            if (!manifiestoQuery.success || manifiestoQuery.data.length === 0) {
+            if (!manifiestoQuery.success) {
                 return { success: false, error: 'Manifiesto no encontrado', data: [] };
             }
             return { success: true, message: 'Manifiesto encontrado', data: manifiestoQuery.data };

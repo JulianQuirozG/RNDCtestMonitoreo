@@ -12,6 +12,7 @@ const moment = require('moment-timezone');
 const rndcPuntosControlRepository = require("../repository/rndc_puntos_control");
 const rndcManifiestoRepository = require("../repository/rndc_manifiestos.repository");
 const puntosControlService = require("./puntosControl.service");
+const manifiestosService = require("./manifiestos.service");
 const rndcConectionService = new RNDCService();
 const rndcService = {
     /**
@@ -49,7 +50,7 @@ const rndcService = {
                 }
 
                 //Si no tiene puntos de control a evaluar actualizo el estado del manifiesto
-                if(!controlPoints.data || controlPoints.data.length <= 0) {
+                if (!controlPoints.data || controlPoints.data.length <= 0) {
                     await DbConfig.executeQuery(`UPDATE rndc_consultas SET estado = 2 WHERE id_viaje = ?`, [manifiesto.id_viaje]);
                     continue;
                 }
@@ -371,25 +372,11 @@ const rndcService = {
                 //crear el manifiesto en la base de datos
                 const data = manifiesto.root.documento;
 
-                if (data.ajuste) {
-                    const puntoControlAjuste = await rndcPuntosControlRepository.actualizarAjuste(data.ajuste);
-                    if (!puntoControlAjuste.success) {
-                        console.error('Error actualizando punto de control EMF:', puntoControlAjuste.error);
-                        ERRORS.push(`Error actualizando punto de control EMF ${data.ajuste.id_punto} para manifiesto ${data.ingresoidmanifiesto}: ${puntoControlAjuste.error}`);
-                    }
-                    continue;
-                }
-
-                const nuevoManifiesto = await rndcManifiestoRepository.createManifiesto(data);
-
-                if (!nuevoManifiesto.success) {
-                    console.error('Error creando nuevo manifiesto EMF:', nuevoManifiesto.error);
-                    ERRORS.push(`Error creando nuevo manifiesto EMF ${data.ingresoidmanifiesto}: ${nuevoManifiesto.error}`);
-                    continue;
-                }
+                const procesarManifiesto = await manifiestosService.procesarManifiesto(data);
+                ERRORS.push(...procesarManifiesto.errors);
 
 
-                if (!data.puntoscontrol || !data.puntoscontrol.puntocontrol || data.puntoscontrol.puntocontrol.length <= 0) {
+                if (!data.puntoscontrol || !data.puntoscontrol.puntocontrol || data.puntoscontrol.puntocontrol.length <= 0 || (data.ajuste && (data.ajuste == 4 || data.ajuste == 5))) {
                     console.log(`El manifiesto ${data.ingresoidmanifiesto} no tiene puntos de control.`);
                     continue;
                 }

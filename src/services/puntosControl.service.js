@@ -67,9 +67,7 @@ const puntosControlService = {
                     const ajustarPunto = await this.actualizarPuntoControl(numero_manifiesto, punto);
                     if (!ajustarPunto.success) errors.push(`El ajuste de ${punto.codpuntocontrol} en el manifiesto ${numero_manifiesto} falló: ${ajustarPunto.message}`);
                 } else {
-                    console.log('Creando punto de control:', punto.codpuntocontrol, numero_manifiesto);
                     const crearPunto = await this.crearPuntosControl(numero_manifiesto, punto);
-                    console.log('Resultado de crear punto de control:', crearPunto);
                     if (!crearPunto.success) errors.push(`La creación de ${punto.codpuntocontrol} en el manifiesto ${numero_manifiesto} falló: ${crearPunto.message}`);
                 }
             }
