@@ -4,11 +4,20 @@ const express = require('express');
 //Importar repositorios y servicios necesarios para el cron
 const DbConfig = require('./config/db');
 const config = require('./config/config');
+const rndcTestRoutes = require('./routes/rndc.test.routes');
 const rndcRoutes = require('./routes/rndc.routes');
 const app = express();
 const { rndcService } = require('./services/rndc.service');
 app.use(express.json());
+app.use(express.urlencoded({ extended: true })); // Para application/x-www-form-urlencoded
 
+// Middleware para parsear XML como texto
+app.use(express.text({ 
+    type: ['application/xml', 'text/xml', 'application/soap+xml'],
+    limit: '10mb'
+}));
+
+app.use('/api/rndcTest', rndcTestRoutes);
 app.use('/api/rndc', rndcRoutes);
 
 // Initialize the database connection
