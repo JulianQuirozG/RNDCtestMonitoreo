@@ -2,11 +2,12 @@ const rndcPuntosControlRepository = require("../repository/rndc_puntos_control")
 
 const puntosControlService = {
 
-    async getPuntoDeControl(id_viaje, puntoId) {
+    async getPuntoDeControl(numero_manifiesto, puntoId) {
         try {
-            const punto = await rndcPuntosControlRepository.getPuntoDeControl(id_viaje, puntoId);
-            if (!punto.status) return { success: false, error: 'Error retrieving punto de control', data: [] };
-
+            const punto = await rndcPuntosControlRepository.getPuntoDeControl(numero_manifiesto, puntoId);
+            console.log('puntoControlService - getPuntoDeControl:', punto);
+            if (!punto.success) return { success: false, error: 'Error retrieving punto de control', data: [] };
+        
             return { success: true, message: 'Punto de control retrieved successfully', data: punto.data };
 
         } catch (error) {
@@ -15,16 +16,18 @@ const puntosControlService = {
         }
 
     },
-    async crearPuntosControl(id_viaje, punto) {
+
+    async crearPuntosControl(numero_manifiesto, punto) {
         try {
-            const puntoExists = await this.getPuntoDeControl(id_viaje, punto.codpuntocontrol);
-            if (!puntoExists.status) return puntoExists;
+            const puntoExists = await this.getPuntoDeControl(numero_manifiesto, punto.codpuntocontrol);
+            console.log('puntoExists', puntoExists);
+            if (!puntoExists.success) return puntoExists;
 
             if (puntoExists.data.length > 0) {
-                return { success: true, message: 'Punto de control already exists', data: puntoExists.data };
+                return { success: false, message: 'Punto de control already exists', data: puntoExists.data };
             }
 
-            const puntoControlQuery = await rndcPuntosControlRepository.createPuntosControl(id_viaje, punto);
+            const puntoControlQuery = await rndcPuntosControlRepository.createPuntosControl(numero_manifiesto, punto);
             if (!puntoControlQuery.success) return { success: false, error: 'Error creating punto de control', data: [] };
             return { success: true, message: 'Punto de control created successfully', data: puntoControlQuery.data };
 
@@ -33,18 +36,19 @@ const puntosControlService = {
             return { success: false, error: 'Internal server error', data: [] };
         }
     },
-    async actualizarPuntoControl(id_viaje, punto) {
+
+    async actualizarPuntoControl(numero_manifiesto, punto) {
         try {
-            const puntoExists = await this.getPuntoDeControl(id_viaje, punto.codpuntocontrol);
-            if (!puntoExists.status) return puntoExists;
+            const puntoExists = await this.getPuntoDeControl(numero_manifiesto, punto.codpuntocontrol);
+            if (!puntoExists.success) return puntoExists;
 
             if (puntoExists.data.length <= 0) {
-                const puntoControlQuery = await this.createPuntosControl(id_viaje, punto);
+                const puntoControlQuery = await this.crearPuntosControl(numero_manifiesto, punto);
                 if (!puntoControlQuery.success) return puntoControlQuery;
                 return { success: true, message: 'Punto de control created successfully', data: puntoControlQuery.data };
             }
 
-            const puntoControlQuery = await rndcPuntosControlRepository.actualizarAjuste(id_viaje, punto);
+            const puntoControlQuery = await rndcPuntosControlRepository.actualizarAjuste(numero_manifiesto, punto);
             if (!puntoControlQuery.success) return { success: false, error: 'Error updating punto de control', data: [] };
 
             return { success: true, message: 'Punto de control updated successfully', data: puntoControlQuery.data };
@@ -53,16 +57,20 @@ const puntosControlService = {
             return { success: false, error: 'Internal server error', data: [] };
         }
     },
-    async procesarPuntosControl(id_viaje, puntosControl) {
+
+    async procesarPuntosControl(numero_manifiesto, puntosControl) {
         try {
             const errors = [];
+
             for (const punto of puntosControl) {
                 if (punto.ajuste) {
-                    const ajustarPunto = this.actualizarPuntoControl(id_viaje, punto);
-                    if (!ajustarPunto.success) errors.push(`El ajuste de ${ajustarPunto.data.codpuntocontrol} en el manifiesto ${id_viaje} falló: ${ajustarPunto.message}`);
+                    const ajustarPunto = await this.actualizarPuntoControl(numero_manifiesto, punto);
+                    if (!ajustarPunto.success) errors.push(`El ajuste de ${punto.codpuntocontrol} en el manifiesto ${numero_manifiesto} falló: ${ajustarPunto.message}`);
                 } else {
-                    const crearPunto = this.crearPuntosControl(id_viaje, punto);
-                    if (!crearPunto.success) errors.push(`La creación de ${crearPunto.data.codpuntocontrol} en el manifiesto ${id_viaje} falló: ${crearPunto.message}`);
+                    console.log('Creando punto de control:', punto.codpuntocontrol, numero_manifiesto);
+                    const crearPunto = await this.crearPuntosControl(numero_manifiesto, punto);
+                    console.log('Resultado de crear punto de control:', crearPunto);
+                    if (!crearPunto.success) errors.push(`La creación de ${punto.codpuntocontrol} en el manifiesto ${numero_manifiesto} falló: ${crearPunto.message}`);
                 }
             }
 
@@ -73,21 +81,6 @@ const puntosControlService = {
         }
     },
 
-    async createPuntosControlForManifiesto(id_viaje, puntosControl) {
-        try {
-            const errors = [];
-            for (const punto of puntosControl) {
-                //se crean los puntos de control asociados al manifiesto
-
-            }
-
-            return { success: errors.length === 0, errors };
-
-        } catch (error) {
-            console.error('Error in createPuntosControlForManifiesto service:', error);
-            return { success: false, error: 'Internal server error', data: [] };
-        }
-    }
 
 }
 
