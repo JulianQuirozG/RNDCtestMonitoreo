@@ -9,15 +9,17 @@ const TIPO_INGRESO = {
     DESCARGUE: 'descargue'
 };
 const moment = require('moment-timezone');
+const rndcPuntosControlRepository = require("../repository/rndc_puntos_control");
+const rndcManifiestoRepository = require("../repository/rndc_manifiestos.repository");
 const rndcConectionService = new RNDCService();
 const rndcService = {
     /**
-* Encuentra los puntos GPS más cercanos a cada punto de control por viaje.
-* @param {Array} gpsPoints - Lista de puntos GPS [{ latitud, longitud, id_viaje }]
-* @param {Array} controlPoints - Lista de puntos de control [{ latitud, longitud, id_viaje }]
-* @param {Array} trips - Lista de viajes [{ id_viaje }]
-* @returns {Array} Lista de coincidencias [{ viaje_id, punto_control_id, gps_id, distancia_m }]
-*/
+    * Encuentra los puntos GPS más cercanos a cada punto de control por viaje.
+    * @param {Array} gpsPoints - Lista de puntos GPS [{ latitud, longitud, id_viaje }]
+    * @param {Array} controlPoints - Lista de puntos de control [{ latitud, longitud, id_viaje }]
+    * @param {Array} trips - Lista de viajes [{ id_viaje }]
+    * @returns {Array} Lista de coincidencias [{ viaje_id, punto_control_id, gps_id, distancia_m }]
+    */
     async puntosCercanosPorViaje() {
         const resultados = [];
         try {
@@ -357,11 +359,8 @@ const rndcService = {
                 return { success: false, error: manifiestosParaEMF.error, data: [] };
             }
             let manifiestosArray = [];
-            if (!Array.isArray(manifiestosParaEMF.data)) {
-                manifiestosArray = [manifiestosParaEMF.data];
-            } else {
-                manifiestosArray = manifiestosParaEMF.data;
-            }
+            if (!Array.isArray(manifiestosParaEMF.data)) manifiestosArray = [manifiestosParaEMF.data];
+            else manifiestosArray = manifiestosParaEMF.data;
 
             const ERRORS = [];
 
@@ -369,18 +368,24 @@ const rndcService = {
                 //crear el manifiesto en la base de datos
                 const data = manifiesto.root.documento;
 
-                console.log('Procesando manifiesto:', data);
+                if (data.ajuste) {
+                    const puntoControlAjuste = await rndcPuntosControlRepository.actualizarAjuste(data.ajuste);
+                    if (!puntoControlAjuste.success) {
+                        console.error('Error actualizando punto de control EMF:', puntoControlAjuste.error);
+                        ERRORS.push(`Error actualizando punto de control EMF ${data.ajuste.id_punto} para manifiesto ${data.ingresoidmanifiesto}: ${puntoControlAjuste.error}`);
+                    }
+                    continue;
+                }
 
-                const nuevoManifiesto = await DbConfig.executeQuery(`INSERT INTO rndc_consultas 
-                    (numero_manifiesto, fecha_registro, nit_transportadora, 
-                    consec_manifiesto,placa_vehiculo  ) VALUES (?, ?, ?, ?, ?)`, [data.ingresoidmanifiesto, new Date(data.fechaexpedicionmanifiesto), data.numnitempresatransporte, data.nummanifiestocarga, data.numplaca]);
+                const nuevoManifiesto = await rndcManifiestoRepository.createManifiesto(data);
+                
                 if (!nuevoManifiesto.success) {
                     console.error('Error creando nuevo manifiesto EMF:', nuevoManifiesto.error);
                     ERRORS.push(`Error creando nuevo manifiesto EMF ${data.ingresoidmanifiesto}: ${nuevoManifiesto.error}`);
                     continue;
                 }
 
-                console.log("query manifiesto", nuevoManifiesto);
+
                 if (!data.puntoscontrol || !data.puntoscontrol.puntocontrol || data.puntoscontrol.puntocontrol.length <= 0) {
                     console.log(`El manifiesto ${data.ingresoidmanifiesto} no tiene puntos de control.`);
                     continue;
@@ -389,28 +394,22 @@ const rndcService = {
                 for (const punto of data.puntoscontrol.puntocontrol) {
                     //se actualizan los puntos de control en la base de datos
                     if (punto.ajuste) {
-                        // Actualizar el punto de control con ajuste
-                    }
-
-                    console.log('Procesando punto de control:', punto);
-                    console.log('ID del nuevo manifiesto:', nuevoManifiesto.data.insertId);
-                    const puntoControlQuery = await DbConfig.executeQuery(`INSERT INTO rndc_puntos_control
-                    (id_viaje, id_punto, latitud, longitud, fecha_cita, estado) VALUES (?, ?, ?, ?, ?, ?)`, [
-                        Number(nuevoManifiesto.data.insertId),
-                        Number(punto.codpuntocontrol),
-                        punto.latitud,
-                        punto.longitud,
-                        new Date(punto.fechacita),
-                        0
-                    ]);
-
-                    if (!puntoControlQuery.success) {
-                        console.error('Error creando punto de control EMF:', puntoControlQuery.error);
-                        ERRORS.push(`Error creando punto de control EMF ${punto.id_punto} para manifiesto ${manifiesto.ingresoidmanifiesto}: ${puntoControlQuery.error}`);
+                        const puntoControlAjuste = await rndcPuntosControlRepository.actualizarAjuste(data.ingresoidmanifiesto, punto);
+                        if (!puntoControlAjuste.success) {
+                            console.error('Error actualizando punto de control EMF:', puntoControlAjuste.error);
+                            ERRORS.push(`Error actualizando punto de control EMF ${punto.id_punto} para manifiesto ${manifiesto.ingresoidmanifiesto}: ${puntoControlAjuste.error}`);
+                        }
                         continue;
-                    }
+                    } else {
+                        console.log("asdasda", nuevoManifiesto)
+                        const puntoControlQuery = await rndcPuntosControlRepository.createPuntosControl(nuevoManifiesto.data.insertId, punto);
+                        if (!puntoControlQuery.success) {
+                            console.error('Error creando punto de control EMF:', puntoControlQuery.error);
+                            ERRORS.push(`Error creando punto de control EMF ${punto.id_punto} para manifiesto ${manifiesto.ingresoidmanifiesto}: ${puntoControlQuery.error}`);
+                            continue;
+                        }
 
-                    console.log('Punto de control insertado:', puntoControlQuery);
+                    }
 
                 }
 
@@ -437,7 +436,8 @@ const rndcService = {
             console.error('Error en reportarNovedadRndc:', error.message);
             return { success: false, error: error.message, data: [] };
         }
-    }
+    },
+
 
 }
 

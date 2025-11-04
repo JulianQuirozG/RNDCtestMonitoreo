@@ -58,10 +58,10 @@ const DbConfig = {
     async executeQuery(query, params = []) {
         try {
             const [rows] = await pool.execute(query, params);
-            return {success: true, message: 'Query executed successfully', data: rows};
+            return { success: true, message: 'Query executed successfully', data: rows };
         } catch (error) {
             console.error("Error executing query: ", error);
-            return { statusCode: 500, error: true, message: 'Error executing query', data: []};
+            return { statusCode: 500, success: false, error: true, message: 'Error executing query', data: [] };
         }
     },
 
