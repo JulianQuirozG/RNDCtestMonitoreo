@@ -415,6 +415,22 @@ const rndcService = {
             console.error('Error en actualizarManifiestosEMF:', error.message);
             return { success: false, error: error.message, data: [] };
         }
+    },
+
+    async reportarNovedadRndc(data, tipo) {
+        try {
+            const novedad_data = {
+                NUMIDGPS: data.id_gps,
+                INGRESOIDMANIFIESTO: data.manifiesto,
+                CODPUNTOCONTROL: data.punto_control,
+                NUMPLACA: data.placa,
+            }
+            const response = await rndcConectionService.reportarNovedadRndc(novedad_data, tipo);
+            return response;
+        } catch (error) {
+            console.error('Error en reportarNovedadRndc:', error.message);
+            return { success: false, error: error.message, data: [] };
+        }
     }
 
 }

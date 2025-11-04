@@ -19,12 +19,7 @@ const rndcController = {
         try {
             const data = req.body;
             const tipo = data.tipo;
-            const result = await rndcServiceInstance.reportarNovedadRndc({
-                NUMIDGPS: data.id_gps,
-                INGRESOIDMANIFIESTO: data.manifiesto,
-                CODPUNTOCONTROL: data.punto_control,
-                NUMPLACA: data.placa,
-            }, tipo);
+            const result = await rndcService.reportarNovedadRndc(data, tipo);
             res.status(result.statusCode).json(result);
         } catch (error) {
             console.error('Error in reportarNovedad controller:', error);
