@@ -40,10 +40,16 @@ const rndcService = {
             for (const manifiesto of manifiestos.data) {
 
                 // Consulto los puntos de control asociados al manifiesto
-                const controlPoints = await DbConfig.executeQuery(`SELECT * FROM rndc_puntos_control WHERE id_viaje = ?`, [manifiesto.id_viaje]);
+                const controlPoints = await DbConfig.executeQuery(`SELECT * FROM rndc_puntos_control WHERE id_viaje = ? and estado != 2`, [manifiesto.id_viaje]);
 
                 if (!controlPoints.success) {
                     console.error('Error consultando puntos de control:', controlPoints.error);
+                    continue;
+                }
+
+                //Si no tiene puntos de control a evaluar actualizo el estado del manifiesto
+                if(!controlPoints.data || controlPoints.data.length <= 0) {
+                    await DbConfig.executeQuery(`UPDATE rndc_consultas SET estado = 2 WHERE id_viaje = ?`, [manifiesto.id_viaje]);
                     continue;
                 }
 
