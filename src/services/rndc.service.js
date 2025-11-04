@@ -352,6 +352,7 @@ const rndcService = {
                 console.error('Error consultando manifiestos para EMF:', manifiestosParaEMF.error);
                 return { success: false, error: manifiestosParaEMF.error, data: [] };
             }
+            
             let manifiestosArray = [];
             if (!Array.isArray(manifiestosParaEMF.data)) manifiestosArray = [manifiestosParaEMF.data];
             else manifiestosArray = manifiestosParaEMF.data;
@@ -359,6 +360,7 @@ const rndcService = {
             const ERRORS = [];
 
             for (const manifiesto of manifiestosArray) {
+                
                 //crear el manifiesto en la base de datos
                 const data = manifiesto.root.documento;
 

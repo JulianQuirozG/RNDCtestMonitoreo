@@ -79,6 +79,16 @@ const rndcPuntosControlRepository = {
             return { status: false, error: 'Database error', data: [] };
         }
 
+    },
+
+    async getPuntoDeControl(id_viaje, puntoId) {
+        try {
+            const punto = await DbConfig.executeQuery(`SELECT * FROM rndc_puntos_control WHERE id_viaje = ? AND id_punto = ?`, [id_viaje, puntoId]);
+            return { status: true, message: 'Punto de control retrieved successfully', data: punto.data };
+        } catch (error) {
+            console.error('Error in getPuntoDeControl repository:', error);
+            return { status: false, error: 'Database error', data: [] };
+        }
     }
 }
 
