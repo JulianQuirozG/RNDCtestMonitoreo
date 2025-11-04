@@ -3,6 +3,8 @@ const axios = require('axios');
 const RNDCUtils = require('./RNDC.response.util');
 const DbConfig = require('../config/db');
 
+ const tiposNovedadesValidas = [1, 2, 3, 4, 5, 6];
+
 class RNDCService {
     constructor() {
         this.rndcWsDemoUrl = RNDC_WS_DEMO_URL;
@@ -110,7 +112,6 @@ class RNDCService {
     async createRegistroMonitoreo(data, user) {
         try {
             const dataRMM = data.ROOT.VARIABLES;
-            console.log('🚀 Llamando a API RNDC con:', data, user);
             const xmlData = `
                      <SOLICITUD>
                     <TIPO>1</TIPO>
@@ -224,9 +225,14 @@ class RNDCService {
         }
     }
 
-    async reportarNovedadRndc(data, tipo = 1) {
+    async reportarNovedadRndc(data, tipo = 1, user = null) {
         try {
-            console.log('🚀 Reportando novedad a RNDC con:', data, tipo);
+            //Verifico que el tipo de novedad sea valido
+            if (!tiposNovedadesValidas.includes(tipo)) {
+                return { statusCode: 400, success: false, error: false, message: 'El tipo de novedad debe ser 1, 2, 3, 4, 5', data: [] };
+            }
+
+            //Preparo el XML para enviar a la RNDC
             const xmlData = `
                     <SOLICITUD>
                     <TIPO>1</TIPO>
@@ -250,8 +256,6 @@ class RNDCService {
             console.log('XML Data para RNDC:', xmlData);
             return { statusCode: 200, error: false, success: true, message: 'Datos preparados para RNDC', data: xmlData };
 
-
-            const response = await this.atenderMensajeRNDC(xmlData, user.idEmpresa);
         } catch (error) {
             console.error('Error en reportarNovedadRndc:', error.message);
             return { statusCode: 500, error: true, success: false, message: error.message, data: [] };
