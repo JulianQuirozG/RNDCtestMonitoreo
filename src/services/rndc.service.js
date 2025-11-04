@@ -84,7 +84,7 @@ const rndcService = {
                         //Si la cantidad de intentos es mayor a 10, envio una novedad a la RNDC
                         if (intentos >= 10) {
                             const reporteNovedad = await rndcConectionService.reportarNovedadRndc({
-                                // NUMIDGPS: coordenadas.data[0].imei,
+                                NUMIDGPS: manifiesto.empresa_monitoreo,
                                 INGRESOIDMANIFIESTO: punto.id_viaje,
                                 CODPUNTOCONTROL: punto.id_punto,
                                 NUMPLACA: manifiesto.placa_vehiculo,
@@ -111,7 +111,7 @@ const rndcService = {
                         //Si no cumple con los tiempos, se tiene que enviar un reporte de novedad a RNDC
                         if (!puntosCargueDescargueValidos.data) {
                             const reporteNovedad = await rndcConectionService.reportarNovedadRndc({
-                                NUMIDGPS: coordenadas.data[0].imei,
+                                NUMIDGPS: manifiesto.empresa_monitoreo,
                                 INGRESOIDMANIFIESTO: punto.id_viaje,
                                 CODPUNTOCONTROL: punto.id_punto,
                                 NUMPLACA: manifiesto.placa_vehiculo,
@@ -269,7 +269,7 @@ const rndcService = {
             PROCESOID: 60
         }
         ROOT.VARIABLES = {
-            NUMIDGPS: coordenadasData.imei,
+            NUMIDGPS: manifiesto.empresa_monitoreo,
             INGRESOIDMANIFIESTO: puntoControlData.id_viaje,
             CODPUNTOCONTROL: puntoControlData.id_punto,
             LATITUD: puntoControlData.latitud,
