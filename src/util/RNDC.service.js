@@ -3,8 +3,9 @@ const axios = require('axios');
 const RNDCUtils = require('./RNDC.response.util');
 const DbConfig = require('../config/db');
 const { xmlToJson } = require('./xmlToJson');
+const reportesRepository = require('../repository/reportes.repository');
 
- const tiposNovedadesValidas = [1, 2, 3, 4, 5, 6];
+const tiposNovedadesValidas = [1, 2, 3, 4, 5, 6];
 
 class RNDCService {
     constructor() {
@@ -93,6 +94,7 @@ class RNDCService {
                     <HORACITAPACTADADESCARGUEREMESA>${data.horacitapactadadescargueremesa}</HORACITAPACTADADESCARGUEREMESA>
                     </variables>`
             console.log('XML Data:', xmlData);
+            const reportesResult = await reportesRepository.crearReporte(xmlData);
             return { statusCode: 200, data: xmlData };
 
             const response = await this.atenderMensajeRNDC(xmlData, user.idEmpresa);
@@ -176,6 +178,7 @@ class RNDCService {
                     </VARIABLES>`
 
             console.log('XML Data:', xmlData);
+            const reportesResult = await reportesRepository.crearReporte(xmlData);
             return { statusCode: 200, data: xmlData };
 
             const response = await this.atenderMensajeRNDC(xmlData, user.idEmpresa);
@@ -293,6 +296,8 @@ class RNDCService {
             //     return { success: false, data: [{ ...response, statusCode: 400 }] }
             // }
             //DESCOMENTAR PARA ENVIAR A RNDC
+
+            const reportesResult = await reportesRepository.crearReporte(xmlData);
             console.log('XML Data para RNDC:', xmlData);
             return { statusCode: 200, error: false, success: true, message: 'Datos preparados para RNDC', data: xmlData };
 
