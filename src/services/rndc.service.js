@@ -8,7 +8,7 @@ const TIPO_INGRESO = {
     CARGUE: 'cargue',
     DESCARGUE: 'descargue'
 };
-
+const moment = require('moment-timezone');
 const rndcConectionService = new RNDCService();
 const rndcService = {
     /**
@@ -341,6 +341,81 @@ const rndcService = {
             return { success: false, error: error.message };
         }
     },
+
+    async sincronizarRegistrosRNDC(manifiestosEMF) {
+        try {
+
+            const manifiestosParaEMF = await rndcConectionService.consultarManifiestosPrueba(manifiestosEMF);
+            if (!manifiestosParaEMF.success) {
+                console.error('Error consultando manifiestos para EMF:', manifiestosParaEMF.error);
+                return { success: false, error: manifiestosParaEMF.error, data: [] };
+            }
+            let manifiestosArray = [];
+            if (!Array.isArray(manifiestosParaEMF.data)) {
+                manifiestosArray = [manifiestosParaEMF.data];
+            } else {
+                manifiestosArray = manifiestosParaEMF.data;
+            }
+
+            const ERRORS = [];
+
+            for (const manifiesto of manifiestosArray) {
+                //crear el manifiesto en la base de datos
+                const data = manifiesto.root.documento;
+
+                console.log('Procesando manifiesto:', data);
+
+                const nuevoManifiesto = await DbConfig.executeQuery(`INSERT INTO rndc_consultas 
+                    (numero_manifiesto, fecha_registro, nit_transportadora, 
+                    consec_manifiesto,placa_vehiculo  ) VALUES (?, ?, ?, ?, ?)`, [data.ingresoidmanifiesto, new Date(data.fechaexpedicionmanifiesto), data.numnitempresatransporte, data.nummanifiestocarga, data.numplaca]);
+                if (!nuevoManifiesto.success) {
+                    console.error('Error creando nuevo manifiesto EMF:', nuevoManifiesto.error);
+                    ERRORS.push(`Error creando nuevo manifiesto EMF ${data.ingresoidmanifiesto}: ${nuevoManifiesto.error}`);
+                    continue;
+                }
+
+                console.log("query manifiesto", nuevoManifiesto);
+                if (!data.puntoscontrol || !data.puntoscontrol.puntocontrol || data.puntoscontrol.puntocontrol.length <= 0) {
+                    console.log(`El manifiesto ${data.ingresoidmanifiesto} no tiene puntos de control.`);
+                    continue;
+                }
+
+                for (const punto of data.puntoscontrol.puntocontrol) {
+                    //se actualizan los puntos de control en la base de datos
+                    if (punto.ajuste) {
+                        // Actualizar el punto de control con ajuste
+                    }
+
+                    console.log('Procesando punto de control:', punto);
+                    console.log('ID del nuevo manifiesto:', nuevoManifiesto.data.insertId);
+                    const puntoControlQuery = await DbConfig.executeQuery(`INSERT INTO rndc_puntos_control
+                    (id_viaje, id_punto, latitud, longitud, fecha_cita, estado) VALUES (?, ?, ?, ?, ?, ?)`, [
+                        Number(nuevoManifiesto.data.insertId),
+                        Number(punto.codpuntocontrol),
+                        punto.latitud,
+                        punto.longitud,
+                        new Date(punto.fechacita),
+                        0
+                    ]);
+
+                    if (!puntoControlQuery.success) {
+                        console.error('Error creando punto de control EMF:', puntoControlQuery.error);
+                        ERRORS.push(`Error creando punto de control EMF ${punto.id_punto} para manifiesto ${manifiesto.ingresoidmanifiesto}: ${puntoControlQuery.error}`);
+                        continue;
+                    }
+
+                    console.log('Punto de control insertado:', puntoControlQuery);
+
+                }
+
+            }
+
+            return { statusCode: 200, message: 'Manifiestos EMF actualizados', data: { ERRORS } };
+        } catch (error) {
+            console.error('Error en actualizarManifiestosEMF:', error.message);
+            return { success: false, error: error.message, data: [] };
+        }
+    }
 
 }
 

@@ -1,25 +1,14 @@
-const rndcService = require('../util/RNDC.service');
-const rndcServiceInstance = new rndcService();
+const { rndcService } = require('../services/rndc.service');
+
 
 const rndcController = {
-    // async createManifiesto(req, res) {
-    //     const { data, user } = req.body;
-    //     const result = await rndcServiceInstance.createManifiesto(data, user);
-    //     res.status(result.statusCode).json(result);
-    // },
 
-    // async createRegistroMonitoreo(req, res) {
-    //     const { data, user } = req.body;
-    //     const result = await rndcServiceInstance.createRegistroMonitoreo(data, user);
-    //     res.status(result.statusCode).json(result);
-    // },
-
-    async consultarManifiesto(req, res) {
+    async sincronizarRegistrosRNDC(req, res) {
         try {
-            const result = await rndcServiceInstance.consultarManifiesto();
+            const result = await rndcService.sincronizarRegistrosRNDC(req.body);
             res.status(200).json(result);
         } catch (error) {
-            console.error('Error in consultarManifiesto controller:', error);
+            console.error('Error in sincronizarRegistrosRNDC controller:', error);
             res.status(500).json({ ok: false, error: 'Internal server error' });
             return;
         }

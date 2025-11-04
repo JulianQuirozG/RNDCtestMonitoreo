@@ -2,6 +2,7 @@ const { RNDC_WS_DEMO_URL, nodeEnv } = require('../config/config');
 const axios = require('axios');
 const RNDCUtils = require('./RNDC.response.util');
 const DbConfig = require('../config/db');
+const { xmlToJson } = require('./xmlToJson');
 
  const tiposNovedadesValidas = [1, 2, 3, 4, 5, 6];
 
@@ -191,6 +192,45 @@ class RNDCService {
             throw { ...error, statusCode: error.statusCode || 500 }
         }
     }
+
+    async consultarManifiestoEMF(tipo = 'nuevos') {
+        try {
+            const xmlData = `
+ 
+                <solicitud>
+                    <tipo>9</tipo>
+                    <procesoid>4</procesoid>
+                </solicitud>
+                <documento>
+                    <numidgps>9007319718</numidgps>
+                    <manifiestos>nuevos</manifiestos>
+                </documento>`;
+
+            const response = await this.atenderMensajeRNDC(xmlData);
+
+            console.log('Response from RNDC:', response);
+            if (response.ok) {
+                //const id_apirndc = await RemesasRepository.save({ identificador_proceso: response.id, idUsuario: user.id, idEmpresa: user.idEmpresa, request: xmlData, response: JSON.stringify(response), status: 200 }, 'crear-remesa');
+                return { success: true, data: [{ ...response }] };
+            } else {
+                return { success: false, data: [{ ...response, statusCode: 400 }] }
+            }
+        } catch (error) {
+            console.error('Error en RemesasService.create:', error);
+            throw { ...error, statusCode: error.statusCode || 500 }
+        }
+    }
+
+    async consultarManifiestosPrueba(data) {
+        try {
+            const jsonData = await xmlToJson(data);
+            return { success: true, data: jsonData };
+        } catch (error) {
+            console.error('Error en consultarManifiestosPrueba:', error.message);
+            return { success: false, error: error.message };
+        }
+    }
+
 
     async consultarManifiesto() {
         try {

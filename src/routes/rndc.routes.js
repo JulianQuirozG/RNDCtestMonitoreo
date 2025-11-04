@@ -2,7 +2,6 @@ const express = require('express');
 const router = express.Router();
 const rndcController = require('../controller/rndc.controller');
 
-router.post('/consultarManifiesto', rndcController.consultarManifiesto);
-router.post('/reportarNovedad', rndcController.reportarNovedad);
+router.post('/sincronizar', rndcController.sincronizarRegistrosRNDC);
 
 module.exports = router;
