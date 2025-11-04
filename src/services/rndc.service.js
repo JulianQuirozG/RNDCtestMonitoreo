@@ -84,7 +84,7 @@ const rndcService = {
                         //Si la cantidad de intentos es mayor a 10, envio una novedad a la RNDC
                         if (intentos >= 10) {
                             const reporteNovedad = await rndcConectionService.reportarNovedadRndc({
-                                // NUMIDGPS: coordenadas.data[0].imei,
+                                NUMIDGPS: manifiesto.empresa_monitoreo,
                                 INGRESOIDMANIFIESTO: punto.id_viaje,
                                 CODPUNTOCONTROL: punto.id_punto,
                                 NUMPLACA: manifiesto.placa_vehiculo,
@@ -111,7 +111,7 @@ const rndcService = {
                         //Si no cumple con los tiempos, se tiene que enviar un reporte de novedad a RNDC
                         if (!puntosCargueDescargueValidos.data) {
                             const reporteNovedad = await rndcConectionService.reportarNovedadRndc({
-                                NUMIDGPS: coordenadas.data[0].imei,
+                                NUMIDGPS: manifiesto.empresa_monitoreo,
                                 INGRESOIDMANIFIESTO: punto.id_viaje,
                                 CODPUNTOCONTROL: punto.id_punto,
                                 NUMPLACA: manifiesto.placa_vehiculo,
@@ -269,7 +269,7 @@ const rndcService = {
             PROCESOID: 60
         }
         ROOT.VARIABLES = {
-            NUMIDGPS: coordenadasData.imei,
+            NUMIDGPS: manifiesto.empresa_monitoreo,
             INGRESOIDMANIFIESTO: puntoControlData.id_viaje,
             CODPUNTOCONTROL: puntoControlData.id_punto,
             LATITUD: puntoControlData.latitud,
@@ -413,6 +413,22 @@ const rndcService = {
             return { statusCode: 200, message: 'Manifiestos EMF actualizados', data: { ERRORS } };
         } catch (error) {
             console.error('Error en actualizarManifiestosEMF:', error.message);
+            return { success: false, error: error.message, data: [] };
+        }
+    },
+
+    async reportarNovedadRndc(data, tipo) {
+        try {
+            const novedad_data = {
+                NUMIDGPS: data.id_gps,
+                INGRESOIDMANIFIESTO: data.manifiesto,
+                CODPUNTOCONTROL: data.punto_control,
+                NUMPLACA: data.placa,
+            }
+            const response = await rndcConectionService.reportarNovedadRndc(novedad_data, tipo);
+            return response;
+        } catch (error) {
+            console.error('Error en reportarNovedadRndc:', error.message);
             return { success: false, error: error.message, data: [] };
         }
     }
