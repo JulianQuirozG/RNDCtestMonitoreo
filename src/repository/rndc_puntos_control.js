@@ -1,9 +1,16 @@
 const DbConfig = require('../config/db');
+const rndcManifiestoRepository = require('./rndc_manifiestos.repository');
 
 const rndcPuntosControlRepository = {
     async createPuntosControl(manifiestoId, punto) {
         try {
+
             const manifiestoIdDB = Number(manifiestoId);
+
+            const manifiestoData = await rndcManifiestoRepository.getManifiestoByingresoidmanifiesto(manifiestoIdDB);
+            if (!manifiestoData.success || manifiestoData.data.length === 0) return manifiestoData;
+
+            const viaje_id = manifiestoData.data[0].id_viaje;
             const puntoId = Number(punto.codpuntocontrol);
             const latitud = punto.latitud;
             const longitud = punto.longitud;
@@ -13,9 +20,9 @@ const rndcPuntosControlRepository = {
             const codmunicipio = punto.codmunicipio;
 
             const puntoControl = await DbConfig.executeQuery(`INSERT INTO rndc_puntos_control
-            (id_viaje, id_punto, latitud, longitud, fecha_cita, tiempopactado, codmunicipio, estado) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, [manifiestoIdDB, puntoId, latitud, longitud, fechaCita, tiempopactado, codmunicipio, estado]);
+            (id_viaje, id_punto, latitud, longitud, fecha_cita, tiempopactado, codmunicipio, estado) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, [viaje_id, puntoId, latitud, longitud, fechaCita, tiempopactado, codmunicipio, estado]);
 
-            if (!puntoControl.success) return { status: false, error: 'Error inserting punto control', data: [] };
+            if (!puntoControl.success) return { success: false, error: 'Error inserting punto control', data: [] };
 
 
             return { success: true, message: 'Punto control created successfully', data: puntoControl };
@@ -39,7 +46,7 @@ const rndcPuntosControlRepository = {
 
             const manifiestoQuery = await DbConfig.executeQuery(`SELECT * FROM rndc_consultas WHERE numero_manifiesto = ?`, [manifiestoIdRNCD]);
             if (!manifiestoQuery.success || manifiestoQuery.data.length === 0) {
-                return { status: false, error: 'Manifiesto no encontrado', data: [] };
+                return { success: false, error: 'Manifiesto no encontrado', data: [] };
             }
 
             const viaje_id = manifiestoQuery.data[0].id_viaje;
@@ -70,24 +77,29 @@ const rndcPuntosControlRepository = {
 
             const actionToDB = DbConfig.executeQuery(query[ajuste], data[ajuste]);
 
-            if (!actionToDB.success) return { status: false, error: 'Error updating ajuste', data: [] };
+            if (!actionToDB.success) return { success: false, error: 'Error updating ajuste', data: [] };
 
-            return { status: true, message: 'Ajuste updated successfully', data: actionToDB };
+            return { success: true, message: 'Ajuste updated successfully', data: actionToDB };
 
         } catch (error) {
             console.error('Error in actualizarAjuste repository:', error);
-            return { status: false, error: 'Database error', data: [] };
+            return { success: false, error: 'Database error', data: [] };
         }
 
     },
 
-    async getPuntoDeControl(id_viaje, puntoId) {
+    async getPuntoDeControl(numero_manifiesto, puntoId) {
         try {
-            const punto = await DbConfig.executeQuery(`SELECT * FROM rndc_puntos_control WHERE id_viaje = ? AND id_punto = ?`, [id_viaje, puntoId]);
-            return { status: true, message: 'Punto de control retrieved successfully', data: punto.data };
+            const manifiesto = await rndcManifiestoRepository.getManifiestoByingresoidmanifiesto(numero_manifiesto);
+            if (!manifiesto.success || manifiesto.data.length === 0) return manifiesto;
+
+            const punto = await DbConfig.executeQuery(`SELECT * FROM rndc_puntos_control WHERE id_viaje = ? AND id_punto = ?`, [manifiesto.data[0].id_viaje, puntoId]);
+            if (!punto.success) return { success: false, error: 'Punto de control no encontrado', data: [] };
+
+            return { success: true, message: 'Punto de control retrieved successfully', data: punto.data };
         } catch (error) {
             console.error('Error in getPuntoDeControl repository:', error);
-            return { status: false, error: 'Database error', data: [] };
+            return { success: false, error: 'Database error', data: [] };
         }
     }
 }
