@@ -21,7 +21,7 @@ const rndcService = {
     async puntosCercanosPorViaje() {
         const resultados = [];
         try {
-            // Si no se proporcionan datos, consultar desde la base de datos
+            // Consulto los manifiestos activos a monitorear
             const manifiestos = await DbConfig.executeQuery(`SELECT * FROM rndc_consultas WHERE estado = 1`);
 
             if (!manifiestos.success) {
@@ -34,8 +34,10 @@ const rndcService = {
                 return { statusCode: 200, message: 'No hay manifiestos para procesar', data: {} };
             }
 
+            // Recorro cada manifiesto
             for (const manifiesto of manifiestos.data) {
 
+                // Consulto los puntos de control asociados al manifiesto
                 const controlPoints = await DbConfig.executeQuery(`SELECT * FROM rndc_puntos_control WHERE id_viaje = ?`, [manifiesto.id_viaje]);
 
                 if (!controlPoints.success) {
@@ -43,6 +45,7 @@ const rndcService = {
                     continue;
                 }
 
+                //Obtengo los puntos de cargue y descargue
                 const puntosParaCYD = this.obtenerPuntosDeCargueDescargue(controlPoints.data);
 
                 if (!puntosParaCYD.success) {
@@ -53,7 +56,9 @@ const rndcService = {
                 const { puntosCargueYDescargue } = puntosParaCYD.data;
                 const fecha_ult_track = new Date();
 
+                // Recorro cada punto de control
                 for (const punto of controlPoints.data) {
+                    // Consulto las coordenadas GPS asociadas al viaje y posteriores a la ultima fecha registrada
                     let query = `SELECT * FROM track_trailer WHERE id_viaje = ? ORDER BY fecha_track ASC`;
                     const variablesQuery = [punto.id_viaje];
 
@@ -71,10 +76,36 @@ const rndcService = {
                     //Si el punto de control ya fue evaluado lo saltamos
                     if (punto.estado == 2) continue;
 
+                    //Si no hay coordenadas nuevas aumento el contador de intentos sin tracks
+                    if (coordenadas.data.length <= 0) {
+                        const intentos = punto.intentos_sin_tracks ? punto.intentos_sin_tracks + 1 : 1;
+                        await DbConfig.executeQuery(`UPDATE rndc_puntos_control SET intentos_sin_tracks = ? WHERE id_punto = ?`, [intentos, punto.id_punto]);
+
+                        //Si la cantidad de intentos es mayor a 10, envio una novedad a la RNDC
+                        if (intentos >= 10) {
+                            const reporteNovedad = await rndcConectionService.reportarNovedadRndc({
+                                // NUMIDGPS: coordenadas.data[0].imei,
+                                INGRESOIDMANIFIESTO: punto.id_viaje,
+                                CODPUNTOCONTROL: punto.id_punto,
+                                NUMPLACA: manifiesto.placa_vehiculo,
+                            }, 4);
+
+                            if (!reporteNovedad || !reporteNovedad.success) {
+                                console.error('Error reportando novedad a RNDC para el punto de control ID:', punto.id_punto);
+                                continue;
+                            }
+                        }
+                        //Si la cantidad de intentos es mayor a 5, envio una notificacion interna
+                        else if (intentos >= 5) {
+                            console.log("Reporte interno a la empresa de monitoreo de flota")
+                        }
+                        continue;
+                    }
+
                     const fecha = await DbConfig.executeQuery(`UPDATE rndc_puntos_control SET fecha_ult_track = ? WHERE id_punto = ?`, [fecha_ult_track, punto.id_punto]);
 
                     //Verifico que los puntos de cargue y descargue cumplan con los tiempos pactados
-                    if (punto.fecha_cita) {
+                    if (punto.fecha_cita && punto.estado == 0) {
                         const puntosCargueDescargueValidos = this.verificarTiemposPuntosCargueDescargue(punto, coordenadas.data);
 
                         //Si no cumple con los tiempos, se tiene que enviar un reporte de novedad a RNDC
@@ -172,7 +203,7 @@ const rndcService = {
     async generarSalida(punto, coordenadas) {
         try {
 
-            const coordenadasValidasFecha ={};
+            const coordenadasValidasFecha = {};
             coordenadasValidasFecha.data = coordenadas.data.filter(coord => (coord.fecha_track > punto.fecha_llegada));
             const validarCoordenadas = await this.validarCoordenadasGPS(punto, coordenadasValidasFecha);
             if (!validarCoordenadas.success) return validarCoordenadas;
@@ -192,7 +223,7 @@ const rndcService = {
             if (!coordenadasValidasDistancia || coordenadasValidasDistancia.length <= 0) {
 
                 const intentos = punto.intentos_con_tracks ? punto.intentos_con_tracks + 1 : 1;
-                const ultimoPunto = turf.point([coordenadasValidasFecha[coordenadasValidasFecha.length - 1].longitud, coordenadasValidasFecha[coordenadasValidasFecha.length - 1].latitud]);
+                const ultimoPunto = turf.point([coordenadasValidasFecha.data[coordenadasValidasFecha.data.length - 1].longitud, coordenadasValidasFecha.data[coordenadasValidasFecha.data.length - 1].latitud]);
                 await DbConfig.executeQuery(`UPDATE rndc_puntos_control SET intentos_con_tracks = ?, ult_intento_con_tracks = ?, Fecha_ult_intento = ? WHERE id_punto = ?`, [intentos, JSON.stringify(ultimoPunto.geometry.coordinates), new Date(), punto.id_punto]);
 
                 return { success: false, message: 'No se encontró punto de salida' };
@@ -281,7 +312,8 @@ const rndcService = {
             //Verifico si la diferencia es mayor a 1 dias
             const diferenciaDias = diffDays.data;
 
-            if (diferenciaDias >= 1) return { error: false, success: false, data: false, message: `El punto de control ID ${punto.id_punto} no cumple con el tiempo pactado. Diferencia de ${diferenciaDias} días.` };
+            if (fechaActual <= fechaCita) return { error: false, success: true, data: true, message: 'El punto de control cumple con el tiempo pactado.' };
+            if (fechaActual > fechaCita && diferenciaDias >= 1) return { error: false, success: false, data: false, message: `El punto de control ID ${punto.id_punto} no cumple con el tiempo pactado. Diferencia de ${diferenciaDias} días.` };
 
             //Si todo esta bien, retorno el exito
             return { error: false, success: true, message: 'El punto de control cumple con el tiempo pactado.', data: true };
@@ -308,7 +340,7 @@ const rndcService = {
             console.error('Error en validarCoordenadasGPS:', error.message);
             return { success: false, error: error.message };
         }
-    }
+    },
 
 }
 
