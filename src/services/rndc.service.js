@@ -8,7 +8,7 @@ const TIPO_INGRESO = {
     CARGUE: 'cargue',
     DESCARGUE: 'descargue'
 };
-const moment = require('moment-timezone');
+
 const rndcPuntosControlRepository = require("../repository/rndc_puntos_control");
 const rndcManifiestoRepository = require("../repository/rndc_manifiestos.repository");
 const rndcConectionService = new RNDCService();
@@ -48,7 +48,7 @@ const rndcService = {
                 }
 
                 //Si no tiene puntos de control a evaluar actualizo el estado del manifiesto
-                if(!controlPoints.data || controlPoints.data.length <= 0) {
+                if (!controlPoints.data || controlPoints.data.length <= 0) {
                     await DbConfig.executeQuery(`UPDATE rndc_consultas SET estado = 2 WHERE id_viaje = ?`, [manifiesto.id_viaje]);
                     continue;
                 }
@@ -350,6 +350,13 @@ const rndcService = {
         }
     },
 
+    /**
+     * Sincroniza los registros de manifiestos EMF con la base de datos local y actualiza los puntos de control.
+     *
+     * @param {Array|Object} manifiestosEMF - Lista o único manifiesto EMF a sincronizar (estructura depende del servicio externo).
+     * @returns {Promise<{statusCode: number, message: string, data: Object}>} Objeto con el estado, mensaje y posibles errores.
+     *
+     */
     async sincronizarRegistrosRNDC(manifiestosEMF) {
         try {
 
@@ -358,7 +365,7 @@ const rndcService = {
                 console.error('Error consultando manifiestos para EMF:', manifiestosParaEMF.error);
                 return { success: false, error: manifiestosParaEMF.error, data: [] };
             }
-            
+
             let manifiestosArray = [];
             if (!Array.isArray(manifiestosParaEMF.data)) manifiestosArray = [manifiestosParaEMF.data];
             else manifiestosArray = manifiestosParaEMF.data;
@@ -366,7 +373,7 @@ const rndcService = {
             const ERRORS = [];
 
             for (const manifiesto of manifiestosArray) {
-                
+
                 //crear el manifiesto en la base de datos
                 const data = manifiesto.root.documento;
 
@@ -380,7 +387,7 @@ const rndcService = {
                 }
 
                 const nuevoManifiesto = await rndcManifiestoRepository.createManifiesto(data);
-                
+
                 if (!nuevoManifiesto.success) {
                     console.error('Error creando nuevo manifiesto EMF:', nuevoManifiesto.error);
                     ERRORS.push(`Error creando nuevo manifiesto EMF ${data.ingresoidmanifiesto}: ${nuevoManifiesto.error}`);
@@ -424,6 +431,19 @@ const rndcService = {
         }
     },
 
+    /**
+     * Reporta una novedad a la RNDC para un punto de control específico.
+     *
+     * Envía los datos requeridos a través del servicio de conexión RNDC, usando el tipo de novedad especificado.
+     *
+     * @param {Object} data - Datos de la novedad. Debe incluir:
+     *   @property {string|number} id_gps - Identificador GPS.
+     *   @property {string|number} manifiesto - Identificador del manifiesto.
+     *   @property {string|number} punto_control - Código del punto de control.
+     *   @property {string} placa - Placa del vehículo.
+     * @param {number} tipo - Tipo de novedad a reportar (según la lógica de negocio).
+     * @returns {Promise<Object>} Respuesta del servicio RNDC. En caso de error, retorna success: false y el mensaje de error.
+     */
     async reportarNovedadRndc(data, tipo) {
         try {
             const novedad_data = {
