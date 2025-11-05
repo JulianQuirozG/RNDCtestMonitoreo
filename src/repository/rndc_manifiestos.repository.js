@@ -102,6 +102,34 @@ const rndcManifiestoRepository = {
             console.error('Error in getManifiestoByingresoidmanifiesto repository:', error);
             return { success: false, error: 'Database error', data: [] };
         }
+    },
+
+    /**
+     * Obtiene todos los manifiestos pendientes por procesar (estado = 1).
+     *
+     * @async
+     * @function getAllNotProcessedManifiestos
+     * @returns {Promise<{success: boolean, message: string, data: Array, error?: string|boolean}>}
+     *   Resultado de la operación. En éxito, `data` contiene el arreglo de manifiestos.
+     *   En error, `success: false` y `error` puede ser un string descriptivo o boolean.
+     * @example
+     * const res = await rndcManifiestoRepository.getAllNotProcessedManifiestos();
+     * if (res.success) {
+     *   console.log('Cantidad de manifiestos pendientes:', res.data.length);
+     * } else {
+     *   console.error('Fallo consultando manifiestos:', res.error || res.message);
+     * }
+     */
+    async getAllNotProcessedManifiestos() {
+        try { 
+             const manifiestos = await DbConfig.executeQuery(`SELECT * FROM rndc_consultas WHERE estado = 1`);
+             if (!manifiestos.success) return { error: false, success: false, message: 'Error al consultar manifiestos', data: manifiestos.data };
+             
+             return { success: true, message: 'Manifiestos encontrados', data: manifiestos.data };
+        } catch (error) {
+            console.error('Error in getAllNotProcessedManifiestos repository:', error);
+            return { success: false, error: 'Database error', data: [] };
+        }
     }
 }
 

@@ -206,7 +206,18 @@ const rndcPuntosControlRepository = {
             console.error('Error in getPuntoDeControl repository:', error);
             return { success: false, error: 'Database error', data: [] };
         }
+    },
+
+    async getAllNotProcessedPuntosControlByManifiesto(manifiestoId) {
+        try {
+            const puntos = await DbConfig.executeQuery(`SELECT * FROM rndc_puntos_control WHERE id_viaje = ? AND estado != 2`, [manifiestoId]);
+            if (!puntos.success) return { success: false, error: 'No se encontraron puntos de control', data: [] };
+            return { success: true, message: 'Puntos de control encontrados', data: puntos.data };
+        } catch (error) {
+            console.error('Error in getAllNotProcessedPuntosControlByManifiesto repository:', error);
+            return { success: false, error: 'Database error', data: [] };
+        }
     }
-}
+};
 
 module.exports = rndcPuntosControlRepository;
