@@ -14,6 +14,7 @@ const rndcManifiestoRepository = require("../repository/rndc_manifiestos.reposit
 const puntosControlService = require("./puntosControl.service");
 const manifiestosService = require("./manifiestos.service");
 const rndcConectionService = new RNDCService();
+const moment = require('moment-timezone');
 const rndcService = {
     /**
     * Encuentra los puntos GPS más cercanos a cada punto de control por viaje.
@@ -92,7 +93,7 @@ const rndcService = {
                         await DbConfig.executeQuery(`UPDATE rndc_puntos_control SET intentos_sin_tracks = ? WHERE id_punto = ?`, [intentos, punto.id_punto]);
 
                         //Si la cantidad de intentos es mayor a 10, envio una novedad a la RNDC
-                        if (intentos >= 10) {
+                        if (intentos == 10) {
                             const reporteNovedad = await rndcConectionService.reportarNovedadRndc({
                                 NUMIDGPS: manifiesto.empresa_monitoreo,
                                 INGRESOIDMANIFIESTO: punto.id_viaje,
@@ -112,12 +113,11 @@ const rndcService = {
                         continue;
                     }
 
-                    const fecha = await DbConfig.executeQuery(`UPDATE rndc_puntos_control SET fecha_ult_track = ? WHERE id_punto = ?`, [fecha_ult_track, punto.id_punto]);
+                    const fecha = await DbConfig.executeQuery(`UPDATE rndc_puntos_control SET fecha_ult_track = ? WHERE id_punto = ?`, [coordenadas.data[coordenadas.data.length - 1].fecha_track, punto.id_punto]);
 
                     //Verifico que los puntos de cargue y descargue cumplan con los tiempos pactados
                     if (punto.fecha_cita && punto.estado == 0) {
                         const puntosCargueDescargueValidos = this.verificarTiemposPuntosCargueDescargue(punto, coordenadas.data);
-
                         //Si no cumple con los tiempos, se tiene que enviar un reporte de novedad a RNDC
                         if (!puntosCargueDescargueValidos.data) {
                             const reporteNovedad = await rndcConectionService.reportarNovedadRndc({
@@ -156,14 +156,12 @@ const rndcService = {
             const xmlResponses = [];
 
             for (const resultado of resultados) {
-
-                // Obtener las respuestas correctamente
-                const responseXML = await rndcConectionService.createRegistroCargueDescargue(resultado.data);
-
+                //Si es ingreso de salida o monitoreo
                 if (resultado.tipo === TIPO_INGRESO.SALIDA) {
                     const monitoreoResponse = await rndcConectionService.createRegistroMonitoreo(resultado.data);
                     xmlResponses.push({ data: monitoreoResponse.data });
                 } else {
+                    const responseXML = await rndcConectionService.createRegistroCargueDescargue(resultado.data);
                     xmlResponses.push({ data: responseXML.data });
                 }
 
@@ -444,14 +442,14 @@ const rndcService = {
             LATITUD: puntoControlData.latitud,
             LONGITUD: puntoControlData.longitud,
             PLACA: coordenadasData.placa,
-            FECHALLEGADA: moment.utc(puntoControlData.fecha_llegada).format('DD/MM/YYYY'),
-            HORALLEGADA: moment.utc(puntoControlData.fecha_llegada).format('HH:mm'),
-            FECHASALIDA: moment.utc(puntoControlData.fecha_salida).format('DD/MM/YYYY'),
-            HORASALIDA: moment.utc(puntoControlData.fecha_salida).format('HH:mm'),
+            FECHALLEGADA: moment.utc(puntoControlData.fecha_llegada).local().format('DD/MM/YYYY'),
+            HORALLEGADA: moment.utc(puntoControlData.fecha_llegada).local().format('HH:mm'),
+            FECHASALIDA: moment.utc(puntoControlData.fecha_salida).local().format('DD/MM/YYYY'),
+            HORASALIDA: moment.utc(puntoControlData.fecha_salida).local().format('HH:mm'),
         };
         if (tipo !== TIPO_INGRESO.SALIDA) {
-            ROOT.VARIABLES.FECHAENTRADA = moment.utc(puntoControlData.fecha_llegada).format('DD/MM/YYYY');
-            ROOT.VARIABLES.HORAENTRADA = moment.utc(puntoControlData.fecha_llegada).format('HH:mm');
+            ROOT.VARIABLES.FECHAENTRADA = moment.utc(puntoControlData.fecha_llegada).local().format('DD/MM/YYYY');
+            ROOT.VARIABLES.HORAENTRADA = moment.utc(puntoControlData.fecha_llegada).local().format('HH:mm');
             ROOT.VARIABLES.TIPOIDCONDUCTOR = manifiesto.cod_id_conductor;
             ROOT.VARIABLES.NUMIDCONDUCTOR = manifiesto.num_id_conductor;
         }

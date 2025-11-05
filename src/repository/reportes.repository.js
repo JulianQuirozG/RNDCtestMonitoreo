@@ -1,4 +1,5 @@
 const DbConfig = require('../config/db');
+const moment = require('moment-timezone');
 
 /**
  * Repositorio para la gestión de reportes en la base de datos.
@@ -80,7 +81,7 @@ const reportesRepository = {
     async crearReporte(reporteData) {
 
         try {
-            const reporte = await DbConfig.executeQuery(`INSERT INTO reportes (body) VALUES (?)`, [reporteData]);
+            const reporte = await DbConfig.executeQuery(`INSERT INTO reportes (body, fecha_creacion) VALUES (?, ?)`, [reporteData, moment.utc().toDate()]);
             if (!reporte.success) {
                 return { success: false, error: false, message: 'Error creating report', data: [reporte.data] };
             }
