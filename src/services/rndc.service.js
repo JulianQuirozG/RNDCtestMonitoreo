@@ -362,18 +362,15 @@ const rndcService = {
             }
 
             let manifiestosArray = [];
-            if (!Array.isArray(manifiestosParaEMF.data)) manifiestosArray = [manifiestosParaEMF.data];
-            else manifiestosArray = manifiestosParaEMF.data;
+            if (!Array.isArray(manifiestosParaEMF.data.root.documento)) manifiestosArray = [manifiestosParaEMF.data.root.documento];
+            else manifiestosArray = manifiestosParaEMF.data.root.documento;
 
             const ERRORS = [];
 
-            for (const manifiesto of manifiestosArray) {
-
-                //crear el manifiesto en la base de datos
-                const data = manifiesto.root.documento;
+            for (const data of manifiestosArray) {
 
                 const procesarManifiesto = await manifiestosService.procesarManifiesto(data);
-                ERRORS.push(...procesarManifiesto.errors);
+                if(procesarManifiesto.errors)ERRORS.push(...procesarManifiesto.errors);
 
 
                 if (!data.puntoscontrol || !data.puntoscontrol.puntocontrol || data.puntoscontrol.puntocontrol.length <= 0 || (data.ajuste && (data.ajuste == 4 || data.ajuste == 5))) {
@@ -382,10 +379,9 @@ const rndcService = {
                 }
 
                 const procesarPuntosControl = await puntosControlService.procesarPuntosControl(data.ingresoidmanifiesto, data.puntoscontrol.puntocontrol);
-                console.log(procesarPuntosControl);
                 if (!procesarPuntosControl.success) return procesarPuntosControl;
 
-                ERRORS.push(...procesarPuntosControl.errors);
+                if(procesarPuntosControl.errors)ERRORS.push(...procesarPuntosControl.errors);
 
             }
 
