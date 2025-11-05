@@ -176,6 +176,47 @@ const rndcService = {
             return { statusCode: 500, error: error.message };
         }
     },
+
+    /**
+     * Genera el registro de entrada de un vehículo en un punto de control.
+     * Valida las coordenadas GPS y actualiza el estado del punto a "en tránsito".
+     * @async
+     * @function generarEntrada
+     * @param {Object} punto - Datos del punto de control
+     * @param {number} punto.id_punto - ID único del punto de control
+     * @param {string|number} punto.latitud - Coordenada de latitud del punto
+     * @param {string|number} punto.longitud - Coordenada de longitud del punto
+     * @param {number} [punto.intentos_con_tracks] - Número de intentos previos con coordenadas
+     * @param {Object} coordenadas - Objeto con coordenadas GPS disponibles
+     * @param {Array} coordenadas.data - Array de coordenadas GPS con timestamp
+     * @returns {Promise<Object>} Resultado de la operación
+     * @returns {boolean} returns.success - Indica si la operación fue exitosa
+     * @returns {string} [returns.error] - Mensaje de error si la operación falló
+     * @returns {string} returns.message - Mensaje descriptivo del resultado
+     * @returns {Object} [returns.data] - Datos del punto actualizado con fecha de llegada
+     * @throws {Error} Error de base de datos o validación de coordenadas
+     * @example
+     * const punto = {
+     *   id_punto: 123,
+     *   latitud: "4.5981",
+     *   longitud: "-74.0758"
+     * };
+     * 
+     * const coordenadas = {
+     *   data: [
+     *     { latitud: 4.5982, longitud: -74.0759, fecha_track: "2024-01-15T10:30:00Z" },
+     *     { latitud: 4.5980, longitud: -74.0757, fecha_track: "2024-01-15T10:31:00Z" }
+     *   ]
+     * };
+     * 
+     * const resultado = await rndcService.generarEntrada(punto, coordenadas);
+     * 
+     * if (resultado.success) {
+     *   console.log("Entrada registrada:", resultado.data.fecha_llegada);
+     * } else {
+     *   console.error("Error:", resultado.message);
+     * }
+     */
     async generarEntrada(punto, coordenadas) {
         try {
 
@@ -210,6 +251,48 @@ const rndcService = {
         }
     },
 
+    /**
+     * Genera el registro de salida de un vehículo de un punto de control.
+     * Filtra coordenadas posteriores a la llegada y determina el punto de salida.
+     * @async
+     * @function generarSalida
+     * @param {Object} punto - Datos del punto de control
+     * @param {number} punto.id_punto - ID único del punto de control
+     * @param {string|number} punto.latitud - Coordenada de latitud del punto
+     * @param {string|number} punto.longitud - Coordenada de longitud del punto
+     * @param {Date} punto.fecha_llegada - Fecha y hora de llegada al punto
+     * @param {number} [punto.intentos_con_tracks] - Número de intentos previos con coordenadas
+     * @param {Object} coordenadas - Objeto con coordenadas GPS disponibles
+     * @param {Array} coordenadas.data - Array de coordenadas GPS con timestamp
+     * @returns {Promise<Object>} Resultado de la operación
+     * @returns {boolean} returns.success - Indica si la operación fue exitosa
+     * @returns {string} [returns.error] - Mensaje de error si la operación falló
+     * @returns {string} returns.message - Mensaje descriptivo del resultado
+     * @returns {Object} [returns.data] - Datos del punto actualizado con fecha de salida
+     * @throws {Error} Error de base de datos, coordenadas inválidas o cálculos geoespaciales
+     * @example
+     * const punto = {
+     *   id_punto: 123,
+     *   latitud: "4.5981",
+     *   longitud: "-74.0758",
+     *   fecha_llegada: new Date("2024-01-15T10:30:00Z")
+     * };
+     * 
+     * const coordenadas = {
+     *   data: [
+     *     { latitud: 4.5982, longitud: -74.0759, fecha_track: "2024-01-15T10:35:00Z" },
+     *     { latitud: 4.6000, longitud: -74.0800, fecha_track: "2024-01-15T11:00:00Z" } // > 1km de distancia
+     *   ]
+     * };
+     * 
+     * const resultado = await rndcService.generarSalida(punto, coordenadas);
+     * 
+     * if (resultado.success) {
+     *   console.log("Salida registrada:", resultado.data.fecha_salida);
+     * } else {
+     *   console.error("Error:", resultado.message);
+     * }
+     */
     async generarSalida(punto, coordenadas) {
         try {
 
@@ -252,6 +335,33 @@ const rndcService = {
             return { success: false, error: error.message };
         }
     },
+
+    /**
+     * Identifica los puntos de cargue y descargue basándose en la presencia de fecha de cita.
+     * Los puntos con fecha de cita se consideran puntos de cargue/descargue según normativa RNDC.
+     * @function obtenerPuntosDeCargueDescargue
+     * @param {Array<Object>} puntos - Array de puntos de control
+     * @param {number} puntos[].id_punto - ID único del punto de control
+     * @param {Date|string} [puntos[].fecha_cita] - Fecha de cita programada (indica cargue/descargue)
+     * @returns {Object} Resultado de la operación
+     * @returns {boolean} returns.success - Indica si la operación fue exitosa
+     * @returns {string} [returns.error] - Mensaje de error si la operación falló
+     * @returns {Object} returns.data - Datos procesados
+     * @returns {Array<number>} returns.data.puntosCargueYDescargue - IDs de puntos que son cargue/descargue
+     * @example
+     * const puntos = [
+     *   { id_punto: 1, fecha_cita: "2024-01-15T10:00:00Z" }, // Cargue/Descargue
+     *   { id_punto: 2, fecha_cita: null },                    // Punto de tránsito
+     *   { id_punto: 3, fecha_cita: "2024-01-16T08:00:00Z" }  // Cargue/Descargue
+     * ];
+     * 
+     * const resultado = rndcService.obtenerPuntosDeCargueDescargue(puntos);
+     * 
+     * if (resultado.success) {
+     *   console.log("Puntos de cargue/descargue:", resultado.data.puntosCargueYDescargue);
+     *   // Output: [1, 3]
+     * }
+     */
     obtenerPuntosDeCargueDescargue(puntos) {
         try {
             const puntosCargueYDescargue = [];
@@ -266,6 +376,55 @@ const rndcService = {
             return { success: false, error: error.message };
         }
     },
+
+    /**
+     * Genera la estructura XML en formato JSON para envío a RNDC.
+     * Crea el payload necesario para registros de monitoreo, cargue o descargue.
+     * @function generarXMLINJSON
+     * @param {Object} manifiesto - Datos del manifiesto
+     * @param {string|number} manifiesto.empresa_monitoreo - ID de la empresa de monitoreo GPS
+     * @param {string} [manifiesto.cod_id_conductor] - Código tipo identificación conductor
+     * @param {string} [manifiesto.num_id_conductor] - Número identificación conductor
+     * @param {Object} puntoControlData - Datos del punto de control procesado
+     * @param {number} puntoControlData.id_viaje - ID del viaje/manifiesto
+     * @param {number} puntoControlData.id_punto - ID del punto de control
+     * @param {string|number} puntoControlData.latitud - Coordenada de latitud
+     * @param {string|number} puntoControlData.longitud - Coordenada de longitud
+     * @param {Date} puntoControlData.fecha_llegada - Fecha y hora de llegada
+     * @param {Date} puntoControlData.fecha_salida - Fecha y hora de salida
+     * @param {Object} coordenadasData - Datos de coordenadas GPS
+     * @param {string} coordenadasData.placa - Placa del vehículo
+     * @param {string} [tipo=TIPO_INGRESO.SALIDA] - Tipo de registro (salida|cargue|descargue)
+     * @returns {Object} Resultado de la operación
+     * @returns {boolean} returns.success - Indica si la operación fue exitosa
+     * @returns {Object} returns.data - Estructura XML en formato JSON
+     * @returns {string} returns.data.VERSION - Versión del XML
+     * @returns {string} returns.data.ENCODING - Codificación del XML
+     * @returns {Object} returns.data.ROOT - Elemento raíz con acceso, solicitud y variables
+     * @example
+     * const manifiesto = {
+     *   empresa_monitoreo: "123456",
+     *   cod_id_conductor: "1",
+     *   num_id_conductor: "12345678"
+     * };
+     * 
+     * const puntoData = {
+     *   id_viaje: 789,
+     *   id_punto: 1,
+     *   latitud: "4.5981",
+     *   longitud: "-74.0758",
+     *   fecha_llegada: new Date("2024-01-15T10:30:00Z"),
+     *   fecha_salida: new Date("2024-01-15T11:00:00Z")
+     * };
+     * 
+     * const coordenadas = { placa: "ABC123" };
+     * 
+     * const resultado = rndcService.generarXMLINJSON(manifiesto, puntoData, coordenadas, "cargue");
+     * 
+     * if (resultado.success) {
+     *   console.log("XML generado:", resultado.data.ROOT.VARIABLES);
+     * }
+     */
     generarXMLINJSON(manifiesto, puntoControlData, coordenadasData, tipo = TIPO_INGRESO.SALIDA) {
         const ROOT = {};
         const VERSION = "1.0";
@@ -301,6 +460,47 @@ const rndcService = {
         return { success: true, data: { VERSION, ENCODING, ROOT } };
     },
 
+    /**
+     * Verifica si un vehículo cumple con los tiempos pactados en puntos de cargue/descargue.
+     * Compara la fecha de cita programada con la fecha real de llegada según GPS.
+     * @function verificarTiemposPuntosCargueDescargue
+     * @param {Object} punto - Datos del punto de control
+     * @param {number} punto.id_punto - ID único del punto de control
+     * @param {Date|string} punto.fecha_cita - Fecha y hora pactada para la cita
+     * @param {string|number} punto.latitud - Coordenada de latitud del punto
+     * @param {string|number} punto.longitud - Coordenada de longitud del punto
+     * @param {Array} coordenadas - Array de coordenadas GPS disponibles
+     * @param {number} coordenadas[].latitud - Latitud de la coordenada GPS
+     * @param {number} coordenadas[].longitud - Longitud de la coordenada GPS
+     * @param {Date|string} coordenadas[].fecha_track - Timestamp de la coordenada GPS
+     * @returns {Object} Resultado de la verificación
+     * @returns {boolean} returns.success - Indica si la operación fue exitosa
+     * @returns {boolean} [returns.error] - Indica si hubo error en el proceso
+     * @returns {string} returns.message - Mensaje descriptivo del resultado
+     * @returns {boolean} returns.data - true si cumple tiempos, false si no cumple
+     * @example
+     * const punto = {
+     *   id_punto: 123,
+     *   fecha_cita: new Date("2024-01-15T10:00:00Z"),
+     *   latitud: "4.5981",
+     *   longitud: "-74.0758"
+     * };
+     * 
+     * const coordenadas = [
+     *   { latitud: 4.5982, longitud: -74.0759, fecha_track: "2024-01-15T09:30:00Z" }, // Llegada temprana
+     *   { latitud: 4.5980, longitud: -74.0757, fecha_track: "2024-01-16T11:00:00Z" }  // Llegada tardía
+     * ];
+     * 
+     * const resultado = rndcService.verificarTiemposPuntosCargueDescargue(punto, coordenadas);
+     * 
+     * if (resultado.success) {
+     *   if (resultado.data) {
+     *     console.log("Cumple con los tiempos pactados");
+     *   } else {
+     *     console.log("No cumple con los tiempos:", resultado.message);
+     *   }
+     * }
+     */
     verificarTiemposPuntosCargueDescargue(punto, coordenadas) {
         try {
             // Obtengo la fecha de la cita y la fecha mas actualizada del gps
@@ -333,6 +533,47 @@ const rndcService = {
         }
     },
 
+    /**
+     * Valida la disponibilidad y calidad de coordenadas GPS para un punto de control.
+     * Actualiza contadores de intentos y genera alertas según el número de fallos.
+     * @async
+     * @function validarCoordenadasGPS
+     * @param {Object} punto - Datos del punto de control
+     * @param {number} punto.id_punto - ID único del punto de control
+     * @param {number} [punto.intentos_sin_tracks] - Número de intentos previos sin coordenadas
+     * @param {Object} coordenadas - Objeto con coordenadas GPS
+     * @param {Array} coordenadas.data - Array de coordenadas GPS disponibles
+     * @returns {Promise<Object>} Resultado de la validación
+     * @returns {boolean} returns.success - Indica si hay coordenadas válidas disponibles
+     * @returns {string} [returns.error] - Mensaje de error si la validación falló
+     * @returns {string} returns.message - Mensaje descriptivo del resultado
+     * @returns {Array} [returns.data] - Array de coordenadas válidas si las hay
+     * @throws {Error} Error de base de datos al actualizar contadores
+     * @example
+     * const punto = {
+     *   id_punto: 123,
+     *   intentos_sin_tracks: 2
+     * };
+     * 
+     * const coordenadas = {
+     *   data: [
+     *     { latitud: 4.5981, longitud: -74.0758, fecha_track: "2024-01-15T10:30:00Z" }
+     *   ]
+     * };
+     * 
+     * const resultado = await rndcService.validarCoordenadasGPS(punto, coordenadas);
+     * 
+     * if (resultado.success) {
+     *   console.log("Coordenadas válidas:", resultado.data.length);
+     * } else {
+     *   console.warn("Sin coordenadas:", resultado.message);
+     * }
+     * 
+     * // Caso sin coordenadas
+     * const coordenadasVacias = { data: [] };
+     * const resultado2 = await rndcService.validarCoordenadasGPS(punto, coordenadasVacias);
+     * // Incrementará intentos_sin_tracks y mostrará alerta si >= 5
+     */
     async validarCoordenadasGPS(punto, coordenadas) {
         try {
             if (!coordenadas.data || coordenadas.data.length <= 0) {
@@ -352,6 +593,48 @@ const rndcService = {
         }
     },
 
+    /**
+     * Sincroniza manifiestos y puntos de control recibidos desde la API de RNDC.
+     * Procesa manifiestos EMF y aplica creaciones o ajustes según corresponda.
+     * @async
+     * @function sincronizarRegistrosRNDC
+     * @param {Array<string>} manifiestosEMF - Array de IDs de manifiestos a consultar
+     * @returns {Promise<Object>} Resultado de la sincronización
+     * @returns {boolean} [returns.success] - Indica si la operación fue exitosa
+     * @returns {number} [returns.statusCode] - Código de estado HTTP de la respuesta
+     * @returns {string} [returns.error] - Mensaje de error si la operación falló
+     * @returns {string} returns.message - Mensaje descriptivo del resultado
+     * @returns {Object} returns.data - Datos del resultado
+     * @returns {Array<string>} returns.data.ERRORS - Array de errores encontrados durante el procesamiento
+     * @throws {Error} Error de conexión con RNDC o base de datos
+     * @example
+     * const manifiestos = ["123456789", "987654321", "456789123"];
+     * 
+     * const resultado = await rndcService.sincronizarRegistrosRNDC(manifiestos);
+     * 
+     * if (resultado.statusCode === 200) {
+     *   console.log("Sincronización completada:", resultado.message);
+     *   
+     *   if (resultado.data.ERRORS.length > 0) {
+     *     console.log("Errores encontrados:");
+     *     resultado.data.ERRORS.forEach(error => console.log("- ", error));
+     *   } else {
+     *     console.log("Todos los manifiestos se procesaron correctamente");
+     *   }
+     * } else {
+     *   console.error("Error en sincronización:", resultado.error);
+     * }
+     * 
+     * // Procesar resultado con validación
+     * const procesarSincronizacion = async (manifestosIds) => {
+     *   const resultado = await rndcService.sincronizarRegistrosRNDC(manifestosIds);
+     *   
+     *   const exitosos = manifestosIds.length - resultado.data.ERRORS.length;
+     *   console.log(`Procesados: ${exitosos}/${manifestosIds.length} manifiestos`);
+     *   
+     *   return resultado.data.ERRORS.length === 0;
+     * };
+     */
     async sincronizarRegistrosRNDC(manifiestosEMF) {
         try {
 
@@ -370,7 +653,7 @@ const rndcService = {
             for (const data of manifiestosArray) {
 
                 const procesarManifiesto = await manifiestosService.procesarManifiesto(data);
-                if(procesarManifiesto.errors)ERRORS.push(...procesarManifiesto.errors);
+                if (procesarManifiesto.errors) ERRORS.push(...procesarManifiesto.errors);
 
 
                 if (!data.puntoscontrol || !data.puntoscontrol.puntocontrol || data.puntoscontrol.puntocontrol.length <= 0 || (data.ajuste && (data.ajuste == 4 || data.ajuste == 5))) {
@@ -381,7 +664,7 @@ const rndcService = {
                 const procesarPuntosControl = await puntosControlService.procesarPuntosControl(data.ingresoidmanifiesto, data.puntoscontrol.puntocontrol);
                 if (!procesarPuntosControl.success) return procesarPuntosControl;
 
-                if(procesarPuntosControl.errors)ERRORS.push(...procesarPuntosControl.errors);
+                if (procesarPuntosControl.errors) ERRORS.push(...procesarPuntosControl.errors);
 
             }
 
@@ -392,6 +675,69 @@ const rndcService = {
         }
     },
 
+    /**
+     * Reporta novedades o incidencias a la plataforma RNDC.
+     * Transforma datos internos al formato requerido por RNDC y envía el reporte.
+     * @async
+     * @function reportarNovedadRndc
+     * @param {Object} data - Datos de la novedad a reportar
+     * @param {string|number} data.id_gps - ID del dispositivo GPS/empresa monitoreo
+     * @param {string|number} data.manifiesto - Número del manifiesto asociado
+     * @param {string|number} data.punto_control - Código del punto de control
+     * @param {string} data.placa - Placa del vehículo involucrado
+     * @param {number} tipo - Tipo de novedad según clasificación RNDC
+     * @param {number} tipo.1 - Retraso en tiempo pactado
+     * @param {number} tipo.2 - Cambio de ruta no autorizado
+     * @param {number} tipo.3 - Falla en dispositivo GPS
+     * @param {number} tipo.4 - Ausencia de señal GPS prolongada
+     * @param {number} tipo.5 - Otras novedades operativas
+     * @returns {Promise<Object>} Resultado del reporte
+     * @returns {boolean} returns.success - Indica si el reporte fue exitoso
+     * @returns {string} [returns.error] - Mensaje de error si el reporte falló
+     * @returns {Array|Object} returns.data - Respuesta de la plataforma RNDC
+     * @throws {Error} Error de conexión con RNDC o validación de datos
+     * @example
+     * // Reportar retraso en tiempo pactado
+     * const novedadRetraso = {
+     *   id_gps: "123456",
+     *   manifiesto: "789012345",
+     *   punto_control: "001",
+     *   placa: "ABC123"
+     * };
+     * 
+     * const resultado = await rndcService.reportarNovedadRndc(novedadRetraso, 1);
+     * 
+     * if (resultado.success) {
+     *   console.log("Novedad reportada exitosamente a RNDC");
+     * } else {
+     *   console.error("Error reportando novedad:", resultado.error);
+     * }
+     * 
+     * // Reportar falla de GPS
+     * const novedadGPS = {
+     *   id_gps: "123456",
+     *   manifiesto: "789012345", 
+     *   punto_control: "002",
+     *   placa: "XYZ789"
+     * };
+     * 
+     * const resultado2 = await rndcService.reportarNovedadRndc(novedadGPS, 4);
+     * 
+     * // Procesar múltiples novedades
+     * const reportarMultiplesNovedades = async (novedades) => {
+     *   const resultados = [];
+     *   
+     *   for (const novedad of novedades) {
+     *     const resultado = await rndcService.reportarNovedadRndc(novedad.data, novedad.tipo);
+     *     resultados.push({ ...novedad, resultado });
+     *   }
+     *   
+     *   const exitosos = resultados.filter(r => r.resultado.success).length;
+     *   console.log(`Reportes exitosos: ${exitosos}/${resultados.length}`);
+     *   
+     *   return resultados;
+     * };
+     */
     async reportarNovedadRndc(data, tipo) {
         try {
             const novedad_data = {
