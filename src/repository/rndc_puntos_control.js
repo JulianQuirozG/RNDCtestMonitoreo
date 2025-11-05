@@ -1,4 +1,5 @@
 const DbConfig = require('../config/db');
+const moment = require('moment-timezone');
 const rndcManifiestoRepository = require('./rndc_manifiestos.repository');
 
 const rndcPuntosControlRepository = {
@@ -46,12 +47,12 @@ const rndcPuntosControlRepository = {
 
             const manifiestoData = await rndcManifiestoRepository.getManifiestoByingresoidmanifiesto(manifiestoIdDB);
             if (!manifiestoData.success || manifiestoData.data.length === 0) return manifiestoData;
-
+            let fecha_cita_str = punto.fechacita + ' ' + (punto.horacita || '00:00');
             const viaje_id = manifiestoData.data[0].id_viaje;
             const puntoId = Number(punto.codpuntocontrol);
             const latitud = punto.latitud;
             const longitud = punto.longitud;
-            const fechaCita = new Date(punto.fechacita);
+            const fechaCita = moment.utc(fecha_cita_str, 'YYYY/MM/DD HH:mm').toDate();
             const estado = 0;
             const tiempopactado = punto.tiempopactado;
             const codmunicipio = punto.codmunicipio;
@@ -123,12 +124,12 @@ const rndcPuntosControlRepository = {
             if (!manifiestoQuery.success || manifiestoQuery.data.length === 0) {
                 return { success: false, error: 'Manifiesto no encontrado', data: [] };
             }
-
+            const fecha_cita_str = punto.fechacita + ' ' + (punto.horacita || '00:00');
             const viaje_id = manifiestoQuery.data[0].id_viaje;
             const puntoId = Number(punto.codpuntocontrol);
             const latitud = punto.latitud;
             const longitud = punto.longitud;
-            const fechaCita = new Date(punto.fechacita);
+            const fechaCita = moment.utc(fecha_cita_str, 'YYYY/MM/DD HH:mm').toDate();
             const estado = 0;
             const tiempopactado = punto.tiempopactado;
             const codmunicipio = punto.codmunicipio;
