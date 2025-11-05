@@ -64,7 +64,7 @@ const rndcService = {
                 }
 
                 const { puntosCargueYDescargue } = puntosParaCYD.data;
-                const fecha_ult_track = new Date();
+                const fecha_ult_track = moment.utc().toDate();
 
                 // Recorro cada punto de control
                 for (const punto of controlPoints.data) {
@@ -233,16 +233,16 @@ const rndcService = {
             if (masCercano.properties.distanceToPoint > 1) {
                 const intentos = punto.intentos_con_tracks ? punto.intentos_con_tracks + 1 : 1;
 
-                await DbConfig.executeQuery(`UPDATE rndc_puntos_control SET intentos_con_tracks = ?, ult_intento_con_tracks = ?, Fecha_ult_intento = ? WHERE id_punto = ?`, [intentos, JSON.stringify(masCercano.geometry.coordinates), new Date(), punto.id_punto]);
+                await DbConfig.executeQuery(`UPDATE rndc_puntos_control SET intentos_con_tracks = ?, ult_intento_con_tracks = ?, Fecha_ult_intento = ? WHERE id_punto = ?`, [intentos, JSON.stringify(masCercano.geometry.coordinates), moment.utc().toDate(), punto.id_punto]);
                 return { success: false, message: 'No se encontro punto de entrada registrada' };
 
             }
 
             const fecha_llegada = coordenadas.data[masCercano.properties.featureIndex].fecha_track;
-            punto.fecha_llegada = new Date(fecha_llegada);
+            punto.fecha_llegada = moment.utc(fecha_llegada).toDate();
             punto.estado = 1;
 
-            const result = await DbConfig.executeQuery(`UPDATE rndc_puntos_control SET estado = 1, fecha_llegada = ?, Fecha_ult_intento = ?, intentos_con_tracks=0, intentos_sin_tracks = 0 WHERE id_punto = ?`, [new Date(fecha_llegada), new Date(), punto.id_punto]);
+            const result = await DbConfig.executeQuery(`UPDATE rndc_puntos_control SET estado = 1, fecha_llegada = ?, Fecha_ult_intento = ?, intentos_con_tracks=0, intentos_sin_tracks = 0 WHERE id_punto = ?`, [punto.fecha_llegada, moment.utc().toDate(), punto.id_punto]);
             return { success: true, message: 'Salida registrada', data: punto };
 
         } catch (error) {
@@ -317,13 +317,13 @@ const rndcService = {
 
                 const intentos = punto.intentos_con_tracks ? punto.intentos_con_tracks + 1 : 1;
                 const ultimoPunto = turf.point([coordenadasValidasFecha.data[coordenadasValidasFecha.data.length - 1].longitud, coordenadasValidasFecha.data[coordenadasValidasFecha.data.length - 1].latitud]);
-                await DbConfig.executeQuery(`UPDATE rndc_puntos_control SET intentos_con_tracks = ?, ult_intento_con_tracks = ?, Fecha_ult_intento = ? WHERE id_punto = ?`, [intentos, JSON.stringify(ultimoPunto.geometry.coordinates), new Date(), punto.id_punto]);
+                await DbConfig.executeQuery(`UPDATE rndc_puntos_control SET intentos_con_tracks = ?, ult_intento_con_tracks = ?, Fecha_ult_intento = ? WHERE id_punto = ?`, [intentos, JSON.stringify(ultimoPunto.geometry.coordinates), moment.utc().toDate(), punto.id_punto]);
 
                 return { success: false, message: 'No se encontró punto de salida' };
             }
 
             const fecha_salida = coordenadasValidasDistancia[0].fecha_track;
-            await DbConfig.executeQuery(`UPDATE rndc_puntos_control SET estado = 2, fecha_salida = ?, Fecha_ult_intento = ?, intentos_con_tracks=0, intentos_sin_tracks = 0 WHERE id_punto = ?`, [new Date(fecha_salida), new Date(), punto.id_punto]);
+            await DbConfig.executeQuery(`UPDATE rndc_puntos_control SET estado = 2, fecha_salida = ?, Fecha_ult_intento = ?, intentos_con_tracks=0, intentos_sin_tracks = 0 WHERE id_punto = ?`, [moment.utc(fecha_salida).toDate(), moment.utc().toDate(), punto.id_punto]);
 
             punto.fecha_salida = fecha_salida;
             punto.estado = 1;
@@ -444,14 +444,14 @@ const rndcService = {
             LATITUD: puntoControlData.latitud,
             LONGITUD: puntoControlData.longitud,
             PLACA: coordenadasData.placa,
-            FECHALLEGADA: new Date(puntoControlData.fecha_llegada).toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit', year: 'numeric' }).replace(/\//g, '/'),
-            HORALLEGADA: new Date(puntoControlData.fecha_llegada).toLocaleTimeString('es-CO', { hour12: false, hour: '2-digit', minute: '2-digit' }),
-            FECHASALIDA: new Date(puntoControlData.fecha_salida).toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit', year: 'numeric' }).replace(/\//g, '/'),
-            HORASALIDA: new Date(puntoControlData.fecha_salida).toLocaleTimeString('es-CO', { hour12: false, hour: '2-digit', minute: '2-digit' }),
+            FECHALLEGADA: moment.utc(puntoControlData.fecha_llegada).format('DD/MM/YYYY'),
+            HORALLEGADA: moment.utc(puntoControlData.fecha_llegada).format('HH:mm'),
+            FECHASALIDA: moment.utc(puntoControlData.fecha_salida).format('DD/MM/YYYY'),
+            HORASALIDA: moment.utc(puntoControlData.fecha_salida).format('HH:mm'),
         };
         if (tipo !== TIPO_INGRESO.SALIDA) {
-            ROOT.VARIABLES.FECHAENTRADA = new Date(puntoControlData.fecha_llegada).toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit', year: 'numeric' }).replace(/\//g, '/');
-            ROOT.VARIABLES.HORAENTRADA = new Date(puntoControlData.fecha_llegada).toLocaleTimeString('es-CO', { hour12: false, hour: '2-digit', minute: '2-digit' });
+            ROOT.VARIABLES.FECHAENTRADA = moment.utc(puntoControlData.fecha_llegada).format('DD/MM/YYYY');
+            ROOT.VARIABLES.HORAENTRADA = moment.utc(puntoControlData.fecha_llegada).format('HH:mm');
             ROOT.VARIABLES.TIPOIDCONDUCTOR = manifiesto.cod_id_conductor;
             ROOT.VARIABLES.NUMIDCONDUCTOR = manifiesto.num_id_conductor;
         }
@@ -578,7 +578,7 @@ const rndcService = {
         try {
             if (!coordenadas.data || coordenadas.data.length <= 0) {
                 const intentos = punto.intentos_sin_tracks ? punto.intentos_sin_tracks + 1 : 1;
-                DbConfig.executeQuery(`UPDATE rndc_puntos_control SET intentos_sin_tracks = ?, ult_intento_sin_tracks = ?, Fecha_ult_intento = ? WHERE id_punto = ?`, [intentos, new Date(), new Date(), punto.id_punto]);
+                DbConfig.executeQuery(`UPDATE rndc_puntos_control SET intentos_sin_tracks = ?, ult_intento_sin_tracks = ?, Fecha_ult_intento = ? WHERE id_punto = ?`, [intentos, moment.utc().toDate(), moment.utc().toDate(), punto.id_punto]);
 
                 if (intentos >= 5) {
                     return { success: false, message: `Cuidado, se han detectado múltiples ${intentos} intentos sin GPS` };
