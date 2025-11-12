@@ -70,7 +70,6 @@ const rndcService = {
 
                 // Recorro cada punto de control
                 for (const punto of controlPoints.data) {
-                    console.log(`Procesando punto de control ID: ${punto.id_punto} para el manifiesto ID: ${manifiesto.id_viaje}`);
                     // Consulto las coordenadas GPS asociadas al viaje y posteriores a la ultima fecha registrada
                     let query = `SELECT * FROM track_trailer WHERE id_viaje = ? ORDER BY fecha_track ASC`;
                     const variablesQuery = [punto.id_viaje];
@@ -80,15 +79,11 @@ const rndcService = {
                         variablesQuery.push(punto.fecha_ult_track);
                     }
 
-                    console.log('Executing query:', query, 'with variables:', variablesQuery);
-
                     const coordenadas = await DbConfig.executeQuery(query, variablesQuery);
                     if (!coordenadas.success) {
                         console.error('Error consultando coordenadas GPS:', coordenadas.error);
                         continue;
                     }
-
-                    console.log(`Coordenadas GPS encontradas para el punto de control ID ${punto.id_punto}:`, coordenadas.data);
 
                     //Si el punto de control ya fue evaluado lo saltamos
                     if (punto.estado == 2) continue;
