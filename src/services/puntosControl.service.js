@@ -250,10 +250,10 @@ const puntosControlService = {
             for (const punto of puntosControl) {
                 if (punto.ajuste) {
                     const ajustarPunto = await this.actualizarPuntoControl(numero_manifiesto, punto);
-                    if (!ajustarPunto.success) errors.push(`El ajuste de ${punto.codpuntocontrol} en el manifiesto ${numero_manifiesto} falló: ${ajustarPunto.message}`);
+                    if (!ajustarPunto.success) errors.push(`El ajuste del punto de control ${punto.codpuntocontrol} en el manifiesto ${numero_manifiesto} falló: ${ajustarPunto.message}`);
                 } else {
                     const crearPunto = await this.crearPuntosControl(numero_manifiesto, punto);
-                    if (!crearPunto.success) errors.push(`La creación de ${punto.codpuntocontrol} en el manifiesto ${numero_manifiesto} falló: ${crearPunto.message}`);
+                    if (!crearPunto.success) errors.push(`La creación del punto de control ${punto.codpuntocontrol} en el manifiesto ${numero_manifiesto} falló: ${crearPunto.message}`);
                 }
             }
 
@@ -263,6 +263,17 @@ const puntosControlService = {
             return { success: false, error: 'Internal server error', data: [] };
         }
     },
+
+    async getAllNotProcessedPuntosControlByManifiesto(manifiestoId){
+        try {
+            const puntos = await rndcPuntosControlRepository.getAllNotProcessedPuntosControlByManifiesto(manifiestoId);
+            if (!puntos.success) return { error: false, success: false, message: 'Error retrieving puntos de control', data: puntos.data };
+            return { success: true, data: puntos.data };
+        } catch (error) {
+            console.error('Error in getAllNotProcessedPuntosControlByManifiesto service:', error);
+            return { error: true, success: false, message: 'Internal server error', data: error };
+        }
+    }
 
 
 }

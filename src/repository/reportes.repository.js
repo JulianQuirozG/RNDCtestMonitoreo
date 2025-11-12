@@ -1,5 +1,9 @@
 const DbConfig = require('../config/db');
+const moment = require('moment-timezone');
 
+/**
+ * Repositorio para la gestión de reportes en la base de datos.
+ */
 const reportesRepository = {
     /**
      * Obtiene todos los reportes que faltan por enviar (estado = 0).
@@ -34,7 +38,7 @@ const reportesRepository = {
             if (!reportesFaltantes.success) {
                 return { success: false, error: false, message: 'Error fetching missing reports', data: [reportesFaltantes.data] };
             }
-            return { success: true, error: false,  message: 'Missing reports fetched successfully', data: reportesFaltantes.data };
+            return { success: true, error: false, message: 'Missing reports fetched successfully', data: reportesFaltantes.data };
         } catch (error) {
             console.error('Error obtaining missing reports for sending:', error);
             return { success: false, error: true, message: 'Internal server error', data: [] };
@@ -75,13 +79,13 @@ const reportesRepository = {
      * const resultado2 = await reportesRepository.crearReporte(reporteJSON);
      */
     async crearReporte(reporteData) {
+
         try {
-            const reporte = await DbConfig.executeQuery(`INSERT INTO reportes (body) VALUES (?)`, [reporteData]);
-           const response = await this.obtenerReportesFaltantesPorEnvio();
-           console.log('response', response);
+            const reporte = await DbConfig.executeQuery(`INSERT INTO reportes (body, fecha_creacion) VALUES (?, ?)`, [reporteData, moment.utc().toDate()]);
             if (!reporte.success) {
                 return { success: false, error: false, message: 'Error creating report', data: [reporte.data] };
             }
+            return { success: true, message: 'Report created successfully', data: reporte };
         } catch (error) {
             console.error('Error creating report:', error);
             return { success: false, error: true, message: 'Internal server error', data: [] };
@@ -126,15 +130,33 @@ const reportesRepository = {
      */
     async actualizarEstadoReporte(reporteId, nuevoEstado) {
         try {
-            const updateResult = await DbConfig.executeQuery(`UPDATE reportes SET estado = ? WHERE id = ?`, [nuevoEstado, reporteId]);
+            if (!data) return { success: false, error: false, message: 'No data provided for update', data: [] };
+
+            // Construir los campos dinámicamente
+            const campos = [];
+            const valores = [];
+
+            // Recorrer las claves del objeto data
+            for (const [clave, valor] of Object.entries(data)) {
+                campos.push(`${clave} = ?`);
+                valores.push(valor);
+            }
+
+            // Agregar el id al final para el WHERE
+            valores.push(reporteId);
+
+            // Ejecutar la consulta de actualización
+            const updateResult = await DbConfig.executeQuery(`UPDATE reportes SET ${campos.join(', ')} WHERE id = ?`, valores);
             if (!updateResult.success) {
                 return { success: false, error: false, message: 'Error updating report status', data: [updateResult.data] };
             }
+
+            return { success: true, message: 'Report status updated successfully', data: updateResult };
         } catch (error) {
             console.error('Error updating report status:', error);
             return { success: false, error: true, message: 'Internal server error', data: [] };
         }
-    }
+    },
 }
 
-module.exports = reportesRepository ;
+module.exports = reportesRepository;

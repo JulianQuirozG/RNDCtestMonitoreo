@@ -134,7 +134,7 @@ class RNDCService {
                     </VARIABLES>`
 
             console.log('XML Data:', xmlData);
-
+            const reportesResult = await reportesRepository.crearReporte(xmlData);
             return { statusCode: 200, data: xmlData };
 
             const response = await this.atenderMensajeRNDC(xmlData, user.idEmpresa);
